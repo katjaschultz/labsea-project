@@ -12,7 +12,6 @@ from tools import load_selected_profiles
 def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x, sigma, xstart, xend):
     # Load profiles
     x_data, z_data, specvol_anom, sigma0, SA, CT = load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
-    x_topo, topo = np.load('data/corrected_topography.npy')
    
     N, M = specvol_anom.shape  # number of profiles, levels
     
@@ -22,10 +21,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
     Mg, Ng = len(z), len(x)  # grid dimensions
     X, Z = np.meshgrid(x, z)
     grid_points = np.stack((X, Z))  # shape: (2, Mg, Ng)
-    xsec_int = [np.argmin(abs(x_topo - xk)) for xk in x]
-    xprof_int = [np.argmin(abs(x_topo - xk)) for xk in x_data[:,0]]
-    topo_sec = topo[xsec_int]*-1
-    topo_prof = topo[xprof_int]*-1
+    
     
     # Initialize output matrix for weighted specific volume anomaly
     specvol_anom_weighted = np.empty([Mg, Ng])
@@ -92,19 +88,6 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
         file_path = folder_path + f'distances_gridpoint_{j}.h5'
         with h5py.File(file_path, 'r') as f:
             profile_dist = f[f'ngrid_{j}'][:]
-        
-        # iclude only profiles within 100 m of water depth at the booundaries (x<=235 and x>=815)
-        '''Dx = 200
-        
-        if j <= 6:
-            n_topo = np.argwhere((topo_prof >= topo_sec[j]-Dx))# & (topo_prof <= topo_sec[j]+Dx))
-            mask = np.intersect1d(n_topo.ravel(), n_selected, np.where(~np.isnan(profile_dist)))
-        elif j>=64:
-            n_topo = np.argwhere((topo_prof >= topo_sec[j]-Dx)) #& (topo_prof <= topo_sec[j]+Dx))
-            mask = np.intersect1d(n_topo.ravel(), n_selected, np.where(~np.isnan(profile_dist)))
-        else:
-            mask = np.intersect1d(n_selected, np.where(~np.isnan(profile_dist))) '''
-        
 
         mask = np.intersect1d(n_selected, np.where(~np.isnan(profile_dist)))
         valid_dist = profile_dist[mask]
