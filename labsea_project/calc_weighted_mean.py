@@ -9,7 +9,7 @@ import h5py
 
 from tools import load_selected_profiles
 
-def main(filename, mask_profiles, output_file, folder_path, spacing_z=25, spacing_x=10, sigma=10.0):
+def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x, sigma, xstart, xend):
     # Load profiles
     x_data, z_data, specvol_anom, sigma0, SA, CT = load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
     x_topo, topo = np.load('data/corrected_topography.npy')
@@ -18,7 +18,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z=25, spacin
     
     # Define grid
     z = np.arange(0, 2000 + spacing_z, spacing_z) * -1e-3  # in km
-    x = np.arange(200, 860 + spacing_x, spacing_x)
+    x = np.arange(xstart, xend + spacing_x, spacing_x)
     Mg, Ng = len(z), len(x)  # grid dimensions
     X, Z = np.meshgrid(x, z)
     grid_points = np.stack((X, Z))  # shape: (2, Mg, Ng)
@@ -160,6 +160,10 @@ if __name__ == "__main__":
                         help="Horizontal grid spacing in kilometers (default: 10)")
     parser.add_argument("--sigma", type=float, default=30.0,
                         help="Gaussian weighting sigma value (default: 30.0)")
+    parser.add_argument("--xstart", type=float, default=200,
+                        help="Starting x-coordinate in kilometers (default: 200)")
+    parser.add_argument("--xend", type=float, default=860,
+                        help="Ending x-coordinate in kilometers (default: 860)")
 
     args = parser.parse_args()
     
@@ -173,4 +177,4 @@ if __name__ == "__main__":
         folder_path = './data/distances/'
         
     # Pass optional arguments to the main function
-    main(args.filename, mask_profiles, args.output_file, folder_path, spacing_z=args.spacing_z, spacing_x=args.spacing_x, sigma=args.sigma)
+    main(args.filename, mask_profiles, args.output_file, folder_path, spacing_z=args.spacing_z, spacing_x=args.spacing_x, sigma=args.sigma, xstart=args.xstart, xend=args.xend)
