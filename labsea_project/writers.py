@@ -2,6 +2,19 @@ import numpy as np
 import xarray as xr
 from numbers import Number
 
+
+
+
+
+
+
+
+
+
+#----------------------------------------------------------------------------------------------------
+# Template code for saving xarray Dataset to NetCDF file
+
+
 def save_dataset(ds, output_file='../test.nc'):
     """
     Attempts to save the dataset to a NetCDF file. If a TypeError occurs due to invalid attribute values,

@@ -5,6 +5,15 @@ import gsw
 from datetime import datetime
 
 
+
+
+
+
+
+# ------------------------------------------------------------------------------------------------
+# template code for analysing Seaglider data 
+# ------------------------------------------------------------------------------------------------
+'''
 # Various conversions from the key to units_name with the multiplicative conversion factor
 unit_conversion = {
     'cm/s': {'units_name': 'm/s', 'factor': 0.01},
@@ -189,7 +198,7 @@ def find_best_dtype(var_name, da):
     return input_dtype
 
 def set_fill_value(new_dtype):
-    fill_val = 2 ** (int(re.findall("\d+", str(new_dtype))[0]) - 1) - 1
+    fill_val = 2 ** (int(re.findall(r"\d+", str(new_dtype))[0]) - 1) - 1
     return fill_val
 
 def set_best_dtype(ds):
@@ -217,4 +226,4 @@ def set_best_dtype(ds):
     )
     return ds
 
-
+'''

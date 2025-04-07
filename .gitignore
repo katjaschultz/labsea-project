@@ -36,6 +36,10 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -76,6 +80,7 @@ docs/_build/
 target/
 
 # Jupyter Notebook
+labsea_project/baukasten.ipynb
 .ipynb_checkpoints
 
 # IPython

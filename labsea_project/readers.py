@@ -5,6 +5,20 @@ import requests
 from importlib_resources import files
 import pooch
 
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------------------------------
+# template code for reading Seaglider data (use maybe to structure reading of data)
+# ------------------------------------------------------------------------------------------------
+'''
 # readers.py: Will only read files.  Not manipulate them.
 #
 # Comment 2024 Oct 30: I needed an initial file list to create the registry
@@ -126,4 +140,4 @@ def create_pooch_registry_from_directory(directory):
             registry[file] = f"sha256:{sha256_hash}"
 
     return registry
-
+'''
