@@ -1,18 +1,26 @@
 # to run this: python calc_weighted_mean.py data/argo_profiles_75kmAR7W_2004_to_2023.nc n_profiles_test.npy specvol_anom_weighted_test.npy
+import sys
 import argparse
 import numpy as np
 import gsw
 import xarray as xr
-import scipy.interpolate
+import scipy
 import tqdm
 import h5py
+import pathlib
+import os
+import importlib_resources
 
-from tools import load_selected_profiles, interpolate_profiles
+script_dir = pathlib.Path().parent.absolute()
+parent_dir = script_dir.parents[0]
+sys.path.append(str(parent_dir))
+
+from labsea_project import readers, writers, plotters, tools, utilities
 
 def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x, sigma, xstart, xend):
-    
+
     # Load profiles
-    x_data, z_data, specvol_anom, sigma0, SA, CT = load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
+    x_data, z_data, specvol_anom, sigma0, SA, CT = tools.load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
    
     N, M = specvol_anom.shape  # number of profiles, levels
     
@@ -31,10 +39,10 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
     CT_weighted = np.empty([Mg, Ng])
 
     # Interpolate on common z grid
-    specvol_int = interpolate_profiles(specvol_anom, z_data, z)
-    sigma0_int = interpolate_profiles(sigma0, z_data, z)
-    SA_int = interpolate_profiles(SA, z_data, z)
-    CT_int = interpolate_profiles(CT, z_data, z)    
+    specvol_int = tools.interpolate_profiles(specvol_anom, z_data, z)
+    sigma0_int = tools.interpolate_profiles(sigma0, z_data, z)
+    SA_int = tools.interpolate_profiles(SA, z_data, z)
+    CT_int = tools.interpolate_profiles(CT, z_data, z)    
     
     # Distance Matrix A[i, j] = |x_data[i,0] - grid_points[0,0,j]|
     A = np.abs(x_data[:, 0][:, None] - grid_points[0, 0, :][None, :])
@@ -48,7 +56,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
         n_selected = np.intersect1d(n_profiles, profiles_in_range[j]) # profiles provided by 'n_profiles' that are within 50 km 
         
         # load distances  
-        file_path = folder_path + f'distances_gridpoint_{j}.h5'
+        file_path = f'{folder_path}/distances_xstart{int(xstart)}_gridpoint_{j}.h5'
         with h5py.File(file_path, 'r') as f:
             profile_dist = f[f'ngrid_{j}'][:]
 
@@ -82,7 +90,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
                     CT_weighted[i, j] = np.nansum(valid_CT[valid_z,i] * weights[:], axis=0)
             
         
-    # Save the result as a NumPy binary file
+    # Save the result as a Numpy binary file
     np.save(output_file, [specvol_anom_weighted, sigma0_weighted, SA_weighted, CT_weighted], 'w')
     print(f"Weighted data saved to {output_file}")
   
@@ -113,12 +121,17 @@ if __name__ == "__main__":
     
     # Load the array from file:
     mask_profiles = xr.open_dataarray(args.mask_profiles_file)
+
+    notebook_dir = pathlib.Path().parent.absolute()
+    parent_dir = notebook_dir.parent
+    folder_path = [str(parent_dir) + '/data/distances']
     
     if args.mask_profiles_file[-6:] == 'all.nc':
-        folder_path = './data/distances_all/' 
+        folder_path = [str(parent_dir) + '/data/distances_all'][0] 
         print('check')
     else:
-        folder_path = './data/distances/'
+
+        folder_path = [str(parent_dir) + '/data/distances'][0]
         
     # Pass optional arguments to the main function
     main(args.filename, mask_profiles, args.output_file, folder_path, spacing_z=args.spacing_z, spacing_x=args.spacing_x, sigma=args.sigma, xstart=args.xstart, xend=args.xend)

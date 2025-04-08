@@ -4,6 +4,7 @@ import xarray as xr
 import gsw
 from datetime import datetime
 from labsea_project.utilities import ll2km, rotate_point, rotate_point_corr
+import scipy
 
 def load_selected_profiles(filename, mask_profiles=np.array([])):
     """
@@ -18,7 +19,7 @@ def load_selected_profiles(filename, mask_profiles=np.array([])):
         specvol_anom: Specific volume anomaly (shape: [n_profiles, M])
     """
     print(filename)
-    argo_ds = xr.open_dataset(filename)
+    argo_ds = xr.open_dataset(filename, engine='netcdf4')
 
     
     if mask_profiles.size==0:
