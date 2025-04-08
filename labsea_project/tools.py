@@ -3,8 +3,84 @@ import pandas as pd
 import xarray as xr
 import gsw
 from datetime import datetime
+from labsea_project.utilities import ll2km, rotate_point, rotate_point_corr
+
+def load_selected_profiles(filename, mask_profiles=np.array([])):
+    """
+    Loads selected profiles from the Argo dataset.
+    
+    Parameters:
+        mask_profiles (array of int): Array of profile indices (saved beforehand for specific experiments).
+        default is set to all profiles
+    
+    Returns:
+        x_data: Rotated x-coordinates (shape: [n_profiles, M])
+        specvol_anom: Specific volume anomaly (shape: [n_profiles, M])
+    """
+    print(filename)
+    argo_ds = xr.open_dataset(filename)
+
+    
+    if mask_profiles.size==0:
+        argo_sel = argo_ds
+    else:
+        argo_sel = argo_ds.where(mask_profiles, drop=True)
+        
+    M = len(argo_sel.N_LEVELS.values)
+    
+    # Calculate specific volume anomaly
+    specvol_anom = gsw.density.specvol_anom_standard(
+        argo_sel.SA.values, argo_sel.CT.values, argo_sel.PRES.values
+    )
+    
+    sigma0 = gsw.density.sigma0(argo_sel.SA.values, argo_sel.CT.values)
+    
+    # Rotate coordinates
+    bbox = [-55.73, -44, 53.517, 68]  # AR7W intersection at the coast
+    lon_data = np.tile(argo_sel.LONGITUDE.values[:, np.newaxis], (1, M))
+    lat_data = np.tile(argo_sel.LATITUDE.values[:, np.newaxis], (1, M))
+    x_data, _ = rotate_point_corr(*ll2km(lon_data, lat_data, bbox))
+
+    z_data     = gsw.z_from_p(argo_sel.PRES.values, lat_data)*10**(-3) # convert to km
+    
+    argo_ds.close()
+    return x_data, z_data, specvol_anom, sigma0, argo_sel.SA.values, argo_sel.CT.values
 
 
+
+
+
+
+def interpolate_profiles(values, z_data, z):
+    """ Interpolate profiles to a common depth grid.
+    Args:
+        z_data (numpy.ndarray): Depth data.
+        values (numpy.ndarray): Values to interpolate.
+        z (numpy.ndarray): Common depth grid."""
+    
+    # Create empty arrays for interpolated values
+    interpolated_values = np.empty((values.shape[0], len(z)))
+
+    for k in range(values.shape[0]):  
+        # Mask valid (non-NaN) values
+        valid = ~np.isnan(z_data[k, :]) & ~np.isnan(values[k, :])  
+        
+        if np.sum(valid) > 1:  # Ensure at least two valid points for interpolation
+            # Define maximum valid depth
+            max_valid_z = np.min(z_data[k, valid])  
+                
+            f = scipy.interpolate.interp1d(
+                z_data[k, valid], values[k, valid], kind='linear', bounds_error=False, fill_value="extrapolate")  
+            
+            # Apply interpolation only where z >= max_valid_z, otherwise set NaN with exception of max depth values close to 2000m (to generate some values there)
+            if max_valid_z >= -1.93:
+                interpolated_values[k, :] = np.where(z >= max_valid_z, f(z), np.nan)
+            else:
+                interpolated_values[k, :] = f(z)
+        else:
+            interpolated_values[k, :] = np.nan  # Assign NaN if no valid data points
+
+    return interpolated_values
 
 
 

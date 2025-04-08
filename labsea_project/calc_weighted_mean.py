@@ -7,9 +7,10 @@ import scipy.interpolate
 import tqdm
 import h5py
 
-from tools import load_selected_profiles
+from tools import load_selected_profiles, interpolate_profiles
 
 def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x, sigma, xstart, xend):
+    
     # Load profiles
     x_data, z_data, specvol_anom, sigma0, SA, CT = load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
    
@@ -29,54 +30,16 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
     SA_weighted = np.empty([Mg, Ng])
     CT_weighted = np.empty([Mg, Ng])
 
-    specvol_int = np.empty([x_data.shape[0],len(z)])
-    sigma0_int = np.empty([x_data.shape[0],len(z)])
-    SA_int = np.empty([x_data.shape[0],len(z)])
-    CT_int = np.empty([x_data.shape[0],len(z)])
-
+    # Interpolate on common z grid
+    specvol_int = interpolate_profiles(specvol_anom, z_data, z)
+    sigma0_int = interpolate_profiles(sigma0, z_data, z)
+    SA_int = interpolate_profiles(SA, z_data, z)
+    CT_int = interpolate_profiles(CT, z_data, z)    
     
-    for k in range(sigma0.shape[0]):  
-        
-       # Mask valid (non-NaN) values
-        valid = ~np.isnan(z_data[k, :]) & ~np.isnan(sigma0[k, :])  
-        
-        if np.sum(valid) > 1:  # Ensure at least two valid points for interpolation
-            # Define maximum valid depth
-            max_valid_z = np.min(z_data[k, valid])  
-                
-            f1 = scipy.interpolate.interp1d(
-                z_data[k, valid], sigma0[k, valid], kind='linear', bounds_error=False, fill_value="extrapolate")  
-            
-            f2 = scipy.interpolate.interp1d(
-                z_data[k, valid], specvol_anom[k, valid], kind='linear', bounds_error=False, fill_value="extrapolate")
-            
-            f3 = scipy.interpolate.interp1d(
-                z_data[k, valid], SA[k, valid], kind='linear', bounds_error=False, fill_value="extrapolate")
-            
-            f4 = scipy.interpolate.interp1d(    
-                z_data[k, valid], CT[k, valid], kind='linear', bounds_error=False, fill_value="extrapolate")
-        
-            # Apply interpolation only where z >= max_valid_z, otherwise set NaN with exception of max depth values close to 2000m (to generate some values there)
-            if max_valid_z >= -1.93:
-                sigma0_int[k, :] = np.where(z >= max_valid_z, f1(z), np.nan)
-                specvol_int[k, :] = np.where(z >= max_valid_z, f2(z), np.nan)
-                SA_int[k, :] = np.where(z >= max_valid_z, f3(z), np.nan)
-                CT_int[k, :] = np.where(z >= max_valid_z, f4(z), np.nan)
-            else:
-                sigma0_int[k, :] =  f1(z)
-                specvol_int[k, :] = f2(z)
-                SA_int[k, :] = f3(z)
-                CT_int[k, :] = f4(z)
-        else:
-            sigma0_int[k, :] = np.nan  # Assign NaN if no valid data points
-            specvol_int[k, :] = np.nan
-            SA_int[k, :] = np.nan
-            CT_int[k, :] = np.nan
-
-    # A has shape (M, Ng) where A[i, j] = |x_data[i,0] - grid_points[0,0,j]|
+    # Distance Matrix A[i, j] = |x_data[i,0] - grid_points[0,0,j]|
     A = np.abs(x_data[:, 0][:, None] - grid_points[0, 0, :][None, :])
     
-    # Now, for each grid point, store the indices of profiles that are within 50 km
+    # For each grid point, store the indices of profiles that are within 50 km
     profiles_in_range = {j: np.where(A[:, j] <= 50)[0] for j in range(A.shape[1])}
   
     # Loop over grid points
@@ -96,7 +59,6 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
         valid_SA = SA_int[mask,:]
         valid_CT = CT_int[mask,:]
     
-        power = 1 
         if np.all(np.isnan(valid_specvol)):
             specvol_anom_weighted[:, j] = np.nan
             sigma0_weighted[:, j] = np.nan
@@ -105,8 +67,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
         else:
             for i in range(Mg):
                 valid_z = ~np.isnan(valid_specvol[:,i])
-                #gaussian weighting
-                sigma = 10.0  
+                # gaussian weighting 
                 weights = np.exp(-valid_dist[valid_z]**2 / (2 * sigma**2))
                 weights /= np.sum(weights)
                 if weights.size == 0:
@@ -123,7 +84,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
         
     # Save the result as a NumPy binary file
     np.save(output_file, [specvol_anom_weighted, sigma0_weighted, SA_weighted, CT_weighted], 'w')
-    print(f"Weighted specific volume anomaly matrix saved to {output_file}")
+    print(f"Weighted data saved to {output_file}")
   
 if __name__ == "__main__": 
     
