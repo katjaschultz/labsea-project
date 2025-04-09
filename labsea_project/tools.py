@@ -1,22 +1,151 @@
 import numpy as np
-import pandas as pd
 import xarray as xr
 import gsw
-from datetime import datetime
-from labsea_project.utilities import ll2km, rotate_point, rotate_point_corr
+from labsea_project.utilities import ll2km, rotate_point_corr
 import scipy
+import xarray as xr
+import scipy.integrate
+
+import pathlib
+import sys
+
+script_dir = pathlib.Path().parent.absolute()
+parent_dir = script_dir.parents[0]
+sys.path.append(str(parent_dir))
+
+# define grid
+spacing_z, spacing_x = 25, 10
+x_topo, topo = np.load(parent_dir / 'data/corrected_topography.npy')
+
+def calc_dyn_h(specvol_anom, p, p_ref=0):
+
+    """ Calculate dynamic height anomaly from specific volume anomaly.
+    Args:
+        specvol_anom (numpy.ndarray): Specific volume anomaly.
+        p (numpy.ndarray): Pressure levels.
+        p_ref (float): Reference pressure level. Default is 0."""
+    
+    db2Pa   = 1e4
+    B       = np.zeros([specvol_anom.shape[0],specvol_anom.shape[1]])
+    idx_ref = np.argmin(np.abs(p[:,0]-p_ref))
+
+    for k in range(specvol_anom.shape[1]): 
+        B[1:,k] = 0.5 * (specvol_anom[:-1,k] + specvol_anom[1:,k]) * (p[1:,k] - p[:-1,k])* db2Pa
+ 
+    D0    = - np.cumsum(B, axis=0)
+    D_ref = D0[idx_ref,:]
+    dyn_h = D0 - D_ref 
+    
+    return dyn_h
+    
+def calc_abs_geo_v(geo_v, ref_vel, p):
+
+    """ Calculate absolute geostrophic velocity from relative geostrophic velocity 
+        and reference velocity at 1000 dbar.
+    Args:
+        geo_v (numpy.ndarray): Relative geostrophic velocity.
+        ref_vel (numpy.ndarray): Reference velocity.
+        p (numpy.ndarray): Pressure levels."""
+    
+    Vp    =  np.zeros(geo_v.shape[1])
+    
+    for i in range(0,geo_v.shape[1]):
+        idx_p = np.argmin(abs(p[:,i]-1000))
+        Vp[i] = geo_v[idx_p,i]
+    
+    # reference to V at p=1000
+    v_0    = ref_vel - Vp    
+
+    return geo_v  + v_0
+
+
+def derive_abs_geo_v(specvol_anom, sigma0, p, ref_vel, lon_ar7w, lat_ar7w, xhalf, Z, p_ref=0):
+   
+    """ Calculate absolute geostrophic velocity from specific volume anomaly 
+        directly using the functions above. 
+        Masking out below densities of 27.8 kg/m^3 and at the topography.
+    Args: 
+        specvol_anom (numpy.ndarray): Specific volume anomaly.
+        sigma0 (numpy.ndarray): Potential Density.
+        ref_vel (numpy.ndarray): Reference velocity.
+        xhalf (numpy.ndarray): x-coordinates of derived geostrophic velocity.
+        Z (numpy.ndarray): Depth levels."""
+    
+    dyn_h = calc_dyn_h(specvol_anom, p, p_ref)
+    geo_v = gsw.geostrophy.geostrophic_velocity(dyn_h, lon_ar7w[:], lat_ar7w[:], axis=0, p=0)
+    geo_v = geo_v[0] # relative geostrophic velocity on axis xhalf, z
+    
+    v      = calc_abs_geo_v(geo_v, ref_vel, p)
+    
+    # mask topo and density
+    sigma0half = (sigma0[:,1:] + sigma0[:,:-1])/2
+    mask    = sigma0half <= 27.8
+    ind = [np.argmin(abs(x_topo - d)) for d in xhalf]
+    mask_topo = Z <= topo[ind]*-1e-3
+
+    v[mask_topo] = np.nan
+    v[~mask] = np.nan
+    sigma0half[mask_topo] = np.nan
+    sigma0half[~mask] = np.nan
+      
+    return v, sigma0half
+
+def derive_strf(v, x, z, returnDelta=False):
+
+    """ Calculate the horizontal and vertical transport streamfunction from the velocity field.
+    Args:
+        v (numpy.ndarray): Velocity field.
+        x (numpy.ndarray): x-coordinates.
+        z (numpy.ndarray): Depth levels.
+        returnDelta (bool): If True, return delta_x and delta_z.
+    Returns:
+        strf_z (numpy.ndarray): Vertical transport streamfunction.
+        strf_x (numpy.ndarray): Horizontal transport streamfunction.
+        imbalance (float): Imbalance of the streamfunction.
+        mask_x (numpy.ndarray): Mask for horizontal transport streamfunction.
+    Optional:
+        delta_x (numpy.ndarray): Delta x-coordinates.
+        delta_z (numpy.ndarray): Delta depth levels."""
+      
+    mask = ~np.isnan(v)
+    vel    = xr.DataArray(data = v,
+                    dims = ["depth", "distance"],
+                    coords = dict(depth = z,
+                                    distance = x))
+        
+    delta_x = np.array([len(mask[i])-len(np.where(mask[i] == False)[0]) for i in range(len(mask))])*spacing_x
+    delta_z = np.array([len(mask[:,i])-len(np.where(mask[:,i] == False)[0]) for i in range(mask.shape[1])])*spacing_z
+    
+    strf_z  = scipy.integrate.cumulative_trapezoid(vel.mean(dim="distance", skipna=True)*delta_x*1000, x=vel.depth, initial=0)*10**(-6) # in m, in Sv
+            
+    vp = (vel - vel.mean(dim='distance', skipna=True) )
+    vh = vp.mean(dim='depth', skipna=True)
+    mask_x = np.isnan(vh)
+    strf_x = scipy.integrate.cumulative_trapezoid(vh[~np.isnan(vh)]*delta_z[~np.isnan(vh)], x=vel.distance[~np.isnan(vh)], initial=0)*10**(-6)
+    
+    imbalance = strf_x[-1]
+
+    if returnDelta:
+        return strf_z, strf_x, imbalance, mask_x, delta_x, delta_z
+    else:
+        return strf_z, strf_x, imbalance, mask_x
+    
 
 def load_selected_profiles(filename, mask_profiles=np.array([])):
     """
     Loads selected profiles from the Argo dataset.
     
-    Parameters:
+    Args:
         mask_profiles (array of int): Array of profile indices (saved beforehand for specific experiments).
         default is set to all profiles
     
     Returns:
         x_data: Rotated x-coordinates (shape: [n_profiles, M])
+        z_data: Rotated depth levels (shape: [n_profiles, M])
         specvol_anom: Specific volume anomaly (shape: [n_profiles, M])
+        sigma0: Potential density (shape: [n_profiles, M])
+        SA: Absolute salinity (shape: [n_profiles, M])
+        CT: Conservative temperature (shape: [n_profiles, M])
     """
     print(filename)
     argo_ds = xr.open_dataset(filename, engine='netcdf4')
@@ -46,9 +175,6 @@ def load_selected_profiles(filename, mask_profiles=np.array([])):
     
     argo_ds.close()
     return x_data, z_data, specvol_anom, sigma0, argo_sel.SA.values, argo_sel.CT.values
-
-
-
 
 
 

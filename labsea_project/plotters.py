@@ -4,8 +4,60 @@ import xarray as xr
 from pandas import DataFrame
 
 import matplotlib.pyplot as plt
+import pathlib
+import sys
+
+script_dir = pathlib.Path().parent.absolute()
+parent_dir = script_dir.parents[0]
+sys.path.append(str(parent_dir))
 
 
+
+x_topo, topo = np.load(parent_dir / 'data/corrected_topography.npy')
+
+# load colorbar ------------------------------------------------------------------------------------------------------------
+
+from matplotlib.colors import LinearSegmentedColormap, BoundaryNorm, Normalize
+
+sampled_colors = np.load(parent_dir / 'data/colorbars/colorbar_pink_yellow_blue_green.npy')
+vel_cmap = LinearSegmentedColormap.from_list('custom_cmap', sampled_colors, N=256)
+value_range = [-0.3, -2.00000000e-01, -1.75000000e-01, -1.50000000e-01,
+       -1.25000000e-01, -1.00000000e-01, -7.50000000e-02, -5.00000000e-02,
+       -2.50000000e-02, 0.0, 2.50000000e-02,  5.00000000e-02,
+        7.50000000e-02,  1.00000000e-01,  1.25000000e-01,  1.50000000e-01,
+        1.75000000e-01,  2.00000000e-01, 0.3]
+norm = BoundaryNorm(value_range, ncolors=vel_cmap.N, clip=True)
+vticks_vel=[-0.2, -0.1, 0, 0.1, 0.2]
+
+# -------------------------------------------------------------------------------------------------------------
+# density contours
+#axes[2].contour(dis, z, V, levels=np.arange(-0.3, 0.4, 0.1), colors='w', linewidth=0.8)
+#axes[2].contour(x[1:-1], z, rho.T[:, 1:-1], levels=np.arange(27.6, 27.82, 0.02), colors='brown', linewidths=0.5, zorder=2)
+#axes[2].contour(x[:], z, rho.T[:, :], [27.8], colors='k', linewidths=1.2, zorder=1)
+
+def plot_abs_geo_v(v, sigma0half, Xhalf, Z, title_string, fig_string, saving=False):
+
+    fig, ax = plt.subplots(1,1, figsize=(10,5))
+    pc = ax.pcolormesh( Xhalf, Z*1e3, v, cmap=vel_cmap, norm=norm, zorder=0)
+    ax.contour(Xhalf, Z*1e3, sigma0half, levels=np.arange(27.6, 27.82, 0.02), colors='k', linewidths=0.5)
+    ax.contour(Xhalf, Z*1e3, sigma0half, [27.8] )
+    ax.set_title(title_string, fontsize=12)
+    ax.plot(x_topo, topo * -1, color=[.3,.3,.3], linewidth=0.5, zorder=3)
+    ax.fill_betweenx(topo*-1, x_topo, where=(x_topo <= 205.622405357364), color=[.8,.8,.8], zorder=2)
+    right_mask = (x_topo >= 855.0984735257368)
+    ax.fill_betweenx(topo[right_mask]*-1, x_topo[right_mask], x2=1000, color=[.8,.8,.8], zorder=2)
+    ax.set_xlim([155,925])
+    ax.set_ylim([-2000,0])
+    cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=vel_cmap), ax=ax, ticks=vticks_vel, extend='both')
+    cbar.set_label('velocity m/s')
+    ax.set_xlabel('distance km')
+    ax.set_ylabel('depth m')
+    ax.axvline(x=205, color='y', linestyle=':', linewidth=2)
+    ax.axvline(x=856, color='y', linestyle=':', linewidth=2)
+    plt.tight_layout()
+    if saving:
+        plt.savefig(f'figures/abs_geo_v_{fig_string}.png')
+    plt.show()
 
 
 
