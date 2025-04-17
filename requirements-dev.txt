@@ -20,3 +20,4 @@ sphinx-rtd-theme
 pypandoc
 myst-nb
 importlib_resources
+scikit-learn
