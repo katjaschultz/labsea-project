@@ -17,50 +17,74 @@ sys.path.append(str(parent_dir))
 
 from labsea_project import readers, writers, plotters, tools, utilities
 
-def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x, sigma, xstart, xend):
+def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x, sigma, xstart, xend, argo=True, ctd=False):
 
-    # Load profiles
-    x_data, z_data, specvol_anom, sigma0, SA, CT = tools.load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
-   
-    N, M = specvol_anom.shape  # number of profiles, levels
-    
+    if ctd:
+        argo = False
+        print('ctd data is treated')
+    else:
+        print('argo data is treated')
+
     # Define grid
     z = np.arange(0, 2000 + spacing_z, spacing_z) * -1e-3  # in km
     x = np.arange(xstart, xend + spacing_x, spacing_x)
     Mg, Ng = len(z), len(x)  # grid dimensions
     X, Z = np.meshgrid(x, z)
     grid_points = np.stack((X, Z))  # shape: (2, Mg, Ng)
+
+    if argo:
+        # Load profiles
+        x_data, z_data, specvol_anom, sigma0, SA, CT = tools.load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
     
-    
+        N, M = specvol_anom.shape  # number of profiles, levels        
+
+        # Interpolate on common z grid
+        specvol_int = tools.interpolate_profiles(specvol_anom, z_data, z)
+        sigma0_int = tools.interpolate_profiles(sigma0, z_data, z)
+        SA_int = tools.interpolate_profiles(SA, z_data, z)
+        CT_int = tools.interpolate_profiles(CT, z_data, z) 
+        
+        # Distance Matrix A[i, j] = |x_data[i,0] - grid_points[0,0,j]|
+        A = np.abs(x_data[:, 0][:, None] - grid_points[0, 0, :][None, :])
+
+    elif ctd:
+        # Load CTD data (already interpolated on z-grid)
+        ds = xr.open_dataset(filename)   
+        x_data = ds['x'].values
+        specvol_int = ds['specvol_anom'].values
+        sigma0_int = ds['sigma0'].values
+        SA_int = ds['SA'].values
+        CT_int = ds['CT'].values
+
+        A = np.abs(x_data[:][:, None] - grid_points[0, 0, :][None, :])
+        ds.close()
+
     # Initialize output matrix for weighted specific volume anomaly
     specvol_anom_weighted = np.empty([Mg, Ng])
     sigma0_weighted = np.empty([Mg, Ng])
     SA_weighted = np.empty([Mg, Ng])
     CT_weighted = np.empty([Mg, Ng])
 
-    # Interpolate on common z grid
-    specvol_int = tools.interpolate_profiles(specvol_anom, z_data, z)
-    sigma0_int = tools.interpolate_profiles(sigma0, z_data, z)
-    SA_int = tools.interpolate_profiles(SA, z_data, z)
-    CT_int = tools.interpolate_profiles(CT, z_data, z)    
-    
-    # Distance Matrix A[i, j] = |x_data[i,0] - grid_points[0,0,j]|
-    A = np.abs(x_data[:, 0][:, None] - grid_points[0, 0, :][None, :])
     
     # For each grid point, store the indices of profiles that are within 50 km
     profiles_in_range = {j: np.where(A[:, j] <= 50)[0] for j in range(A.shape[1])}
   
     # Loop over grid points
     for j in tqdm.tqdm(range(Ng), desc='Processing Gridpoints'):
-        n_profiles = np.where(mask_profiles)[0]
-        n_selected = np.intersect1d(n_profiles, profiles_in_range[j]) # profiles provided by 'n_profiles' that are within 50 km 
-        
-        # load distances  
-        file_path = f'{folder_path}/distances_xstart{int(xstart)}_gridpoint_{j}.h5'
-        with h5py.File(file_path, 'r') as f:
-            profile_dist = f[f'ngrid_{j}'][:]
+        if argo:
+            n_profiles = np.where(mask_profiles)[0]
+            n_selected = np.intersect1d(n_profiles, profiles_in_range[j]) # profiles provided by 'n_profiles' that are within 50 km 
+            # load distances  
+            file_path = f'{folder_path}/distances_xstart{int(xstart)}_gridpoint_{j}.h5'
+            with h5py.File(file_path, 'r') as f:
+                profile_dist = f[f'ngrid_{j}'][:]
 
-        mask = np.intersect1d(n_selected, np.where(~np.isnan(profile_dist)))
+            mask = np.intersect1d(n_selected, np.where(~np.isnan(profile_dist)))
+        elif ctd:
+            n_selected = profiles_in_range[j]
+            profile_dist = A[:,j]
+            mask = np.intersect1d(n_selected, np.where(~np.isnan(profile_dist)))
+        
         valid_dist = profile_dist[mask]
         valid_specvol = specvol_int[mask,:]
         valid_sigma0 = sigma0_int[mask,:]
@@ -116,6 +140,10 @@ if __name__ == "__main__":
                         help="Starting x-coordinate in kilometers (default: 200)")
     parser.add_argument("--xend", type=float, default=860,
                         help="Ending x-coordinate in kilometers (default: 860)")
+    parser.add_argument("--argo", action="store_true",
+                        help="Flag to indicate if the input data is from Argo profiles")
+    parser.add_argument("--ctd", action="store_true",
+                        help="Flag to indicate if the input data is from CTD profiles")
 
     args = parser.parse_args()
     
@@ -130,8 +158,20 @@ if __name__ == "__main__":
         folder_path = [str(parent_dir) + '/data/distances_all'][0] 
         print('check')
     else:
-
         folder_path = [str(parent_dir) + '/data/distances'][0]
         
     # Pass optional arguments to the main function
-    main(args.filename, mask_profiles, args.output_file, folder_path, spacing_z=args.spacing_z, spacing_x=args.spacing_x, sigma=args.sigma, xstart=args.xstart, xend=args.xend)
+    # Pass optional arguments to the main function
+    main(
+        args.filename,
+        mask_profiles,
+        args.output_file,
+        folder_path,
+        spacing_z=args.spacing_z,
+        spacing_x=args.spacing_x,
+        sigma=args.sigma,
+        xstart=args.xstart,
+        xend=args.xend,
+        argo=args.argo,
+        ctd=args.ctd,
+    )
