@@ -28,6 +28,8 @@ value_range = [-0.3, -2.00000000e-01, -1.75000000e-01, -1.50000000e-01,
         1.75000000e-01,  2.00000000e-01, 0.3]
 norm = BoundaryNorm(value_range, ncolors=vel_cmap.N, clip=True)
 vticks_vel=[-0.2, -0.1, 0, 0.1, 0.2]
+#cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=vel_cmap), ax=ax, ticks=vticks_vel, extend='both')
+
 
 # -------------------------------------------------------------------------------------------------------------
 # density contours
@@ -56,7 +58,7 @@ def plot_abs_geo_v(v, sigma0half, Xhalf, Z, title_string, fig_string, saving=Fal
     ax.axvline(x=856, color='y', linestyle=':', linewidth=2)
     plt.tight_layout()
     if saving:
-        plt.savefig(f'figures/abs_geo_v_{fig_string}.png')
+        plt.savefig(parent_dir / f'figures/abs_geo_v_{fig_string}.png')
     plt.show()
 
 
