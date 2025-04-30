@@ -58,7 +58,7 @@ def plot_abs_geo_v(v, sigma0half, Xhalf, Z, title_string, fig_string, saving=Fal
     ax.axvline(x=856, color='y', linestyle=':', linewidth=2)
     plt.tight_layout()
     if saving:
-        plt.savefig(f'figures/abs_geo_v_{fig_string}.png')
+        plt.savefig(parent_dir / f'figures/abs_geo_v_{fig_string}.png')
     plt.show()
 
 

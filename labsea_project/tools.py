@@ -8,6 +8,7 @@ import scipy.integrate
 
 import pathlib
 import sys
+import matplotlib.pyplot as plt
 
 script_dir = pathlib.Path().parent.absolute()
 parent_dir = script_dir.parents[0]
@@ -59,7 +60,7 @@ def calc_abs_geo_v(geo_v, ref_vel, p):
     return geo_v  + v_0
 
 
-def derive_abs_geo_v(specvol_anom, sigma0, p, ref_vel, lon_ar7w, lat_ar7w, xhalf, Z, p_ref=0):
+def derive_abs_geo_v(specvol_anom, sigma0, p, ref_vel, lon_ar7w, lat_ar7w, xhalf, Z, p_ref=0, mask_sigma=True):
    
     """ Calculate absolute geostrophic velocity from specific volume anomaly 
         directly using the functions above. 
@@ -84,19 +85,25 @@ def derive_abs_geo_v(specvol_anom, sigma0, p, ref_vel, lon_ar7w, lat_ar7w, xhalf
     mask_topo = Z <= topo[ind]*-1e-3
 
     v[mask_topo] = np.nan
-    v[~mask] = np.nan
     sigma0half[mask_topo] = np.nan
-    sigma0half[~mask] = np.nan
+
+    if mask_sigma:
+        v[~mask] = np.nan
+        sigma0half[~mask] = np.nan
       
     return v, sigma0half
 
-def derive_strf(v, x, z, returnDelta=False):
+def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
 
-    """ Calculate the horizontal and vertical transport streamfunction from the velocity field.
+    """ Calculate the horizontal and vertical transport streamfunction from the velocity field. 
+        option to add a sensitivity to the velocity field for the whole section or only at eastern part
+        to minimize the imbalance of the streamfunction.
     Args:
         v (numpy.ndarray): Velocity field.
         x (numpy.ndarray): x-coordinates.
         z (numpy.ndarray): Depth levels.
+        sensitivity (float): Sensitivity to be added to the velocity field.
+        onlyEast (bool): If True, apply sensitivity only to the eastern part.
         returnDelta (bool): If True, return delta_x and delta_z.
     Returns:
         strf_z (numpy.ndarray): Vertical transport streamfunction.
@@ -105,13 +112,24 @@ def derive_strf(v, x, z, returnDelta=False):
         mask_x (numpy.ndarray): Mask for horizontal transport streamfunction.
     Optional:
         delta_x (numpy.ndarray): Delta x-coordinates.
-        delta_z (numpy.ndarray): Delta depth levels."""
-      
-    mask = ~np.isnan(v)
-    vel    = xr.DataArray(data = v,
-                    dims = ["depth", "distance"],
-                    coords = dict(depth = z,
-                                    distance = x))
+        delta_z (numpy.ndarray): Delta depth levels.
+        """
+    v_copy = v.copy()
+
+    if onlyEast == False:  
+        mask = ~np.isnan(v)
+        vel    = xr.DataArray(data = v + sensitivity,
+                        dims = ["depth", "distance"],
+                        coords = dict(depth = z,
+                                        distance = x))
+    elif onlyEast == True:
+        # add sensitivity for x >= xend-100km
+        v_copy[:,-10:] = v_copy[:,-10:] + sensitivity 
+        mask = ~np.isnan(v_copy) 
+        vel    = xr.DataArray(data = v_copy,
+                        dims = ["depth", "distance"],
+                        coords = dict(depth = z,
+                                        distance = x))
         
     delta_x = np.array([len(mask[i])-len(np.where(mask[i] == False)[0]) for i in range(len(mask))])*spacing_x
     delta_z = np.array([len(mask[:,i])-len(np.where(mask[:,i] == False)[0]) for i in range(mask.shape[1])])*spacing_z
@@ -129,6 +147,52 @@ def derive_strf(v, x, z, returnDelta=False):
         return strf_z, strf_x, imbalance, mask_x, delta_x, delta_z
     else:
         return strf_z, strf_x, imbalance, mask_x
+    
+
+    
+def find_adjustment_velocity(v, x, z, onlyEast=False):
+
+    """ Find the adjustment velocity to minimize the vertical imbalance of the streamfunction.
+    Args:
+        v (numpy.ndarray): Velocity field.
+        x (numpy.ndarray): x-coordinates.
+        z (numpy.ndarray): Depth levels.
+        onlyEast (bool): If True, apply sensitivity only to the eastern part.
+        """
+        
+    imbalance_z = 0.1 #initialize
+
+    if onlyEast:
+        eps = 1e-3
+        sensitivity = np.arange(-1, 1, 0.1)
+        precision   = 0.1
+    else:
+        eps = 1e-4
+        sensitivity = np.arange(-0.2,0.2, 0.01)
+        precision   = 0.01
+
+    while imbalance_z >= eps:
+        
+        imb_x = np.zeros(len(sensitivity))
+        imb_z = np.zeros(len(sensitivity))
+
+        for i, sens in enumerate(sensitivity):
+            strf_z1, strf_x1, imbalance, _   = derive_strf(v, x, z, sensitivity=sens, onlyEast=onlyEast)
+            imb_z[i] = strf_z1[-1]-strf_z1[0]
+            imb_x[i] = imbalance
+
+
+        imbalance_z = abs(imb_z).min()
+        const = sensitivity[np.argmin(abs(imb_z))].round(6)
+
+        sensitivity = np.arange(const-precision, const+precision, precision*0.1)
+        print(sensitivity)
+        precision = precision*0.1
+    
+    print(f'Adjustment velocity of {const} m/s determined at {imbalance_z.round(5)} Sv vertical imbalance')
+
+    return const
+
     
 
 def load_selected_profiles(filename, mask_profiles=np.array([])):
