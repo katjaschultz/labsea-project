@@ -186,10 +186,9 @@ def find_adjustment_velocity(v, x, z, onlyEast=False):
         const = sensitivity[np.argmin(abs(imb_z))].round(6)
 
         sensitivity = np.arange(const-precision, const+precision, precision*0.1)
-        print(sensitivity)
         precision = precision*0.1
     
-    print(f'Adjustment velocity of {const} m/s determined at {imbalance_z.round(5)} Sv vertical imbalance')
+    print(f'Adjustment velocity of {const} m/s determined at {imbalance_z.round(6)} Sv vertical imbalance')
 
     return const
 
@@ -274,6 +273,38 @@ def interpolate_profiles(values, z_data, z):
     return interpolated_values
 
 
+def convert_to_density_space(sigma0_grid, sigma0_int, var):
+    """
+    Convert variables to density space for 2D arrays.
+    
+    Args:
+        sigma0_grid (1D array): Target density grid.
+        sigma0_int (2D array): Input density values (2D grid, axis 1 is the sigma/z axis).
+        var (2D array): Variable values corresponding to sigma0_int (2D grid, axis 1 is the sigma/z axis).
+    
+    Returns:
+        2D array: Interpolated variable values on the sigma0_grid for each row.
+    """
+    # Initialize an array to store the interpolated results
+    var_sigma = np.empty((sigma0_int.shape[0], len(sigma0_grid)))
+
+    # Loop over rows
+    for i in range(sigma0_int.shape[0]):
+        # Sort sigma0_int and var for the current row
+        sort_idx = np.argsort(sigma0_int[i, :])
+        sigma0_sorted = sigma0_int[i, sort_idx]
+        var_sorted = var[i, sort_idx]
+
+        # Remove duplicates in sigma0_sorted
+        _, unique_idx = np.unique(sigma0_sorted, return_index=True)
+        sigma0_unique = sigma0_sorted[unique_idx]
+        var_unique = var_sorted[unique_idx]
+
+        # Interpolate to the target sigma0_grid
+        f = scipy.interpolate.interp1d(sigma0_unique, var_unique, bounds_error=False, fill_value=np.nan)
+        var_sigma[i, :] = f(sigma0_grid)
+
+    return var_sigma
 
 
 
