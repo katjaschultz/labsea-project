@@ -17,7 +17,7 @@ sys.path.append(str(parent_dir))
 
 from labsea_project import readers, writers, plotters, tools, utilities
 
-def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x, sigma, xstart, xend, argo=True, ctd=False):
+def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x, omega, xstart, xend, argo=True, ctd=False):
 
     if ctd:
         argo = False
@@ -36,14 +36,23 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
         # Load profiles
         x_data, z_data, specvol_anom, sigma0, SA, CT = tools.load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
     
-        N, M = specvol_anom.shape  # number of profiles, levels        
-
+        # Depth space
         # Interpolate on common z grid
         specvol_int = tools.interpolate_profiles(specvol_anom, z_data, z)
         sigma0_int = tools.interpolate_profiles(sigma0, z_data, z)
         SA_int = tools.interpolate_profiles(SA, z_data, z)
         CT_int = tools.interpolate_profiles(CT, z_data, z) 
-        
+
+        ## Density space
+        # load mean density profile
+        mean_sigma0 = np.load(parent_dir / f"data/mean_sigma0_2004_to_2023_1000db_isobars_all_data_omega{int(omega)}_xstart{int(xstart)}_xend{int(xend)}.npy")
+        sigma0_grid  = mean_sigma0.round(4) # this corresponds to scaled depth with equivalent z-spacing
+        # convert variables to density space
+        specvol_sigma = tools.convert_to_density_space(sigma0_grid, sigma0_int, specvol_int)
+        sigma0_sigma = tools.convert_to_density_space(sigma0_grid, sigma0_int, sigma0_int)
+        SA_sigma = tools.convert_to_density_space(sigma0_grid, sigma0_int, SA_int)
+        CT_sigma = tools.convert_to_density_space(sigma0_grid, sigma0_int, CT_int)
+
         # Distance Matrix A[i, j] = |x_data[i,0] - grid_points[0,0,j]|
         A = np.abs(x_data[:, 0][:, None] - grid_points[0, 0, :][None, :])
 
@@ -62,18 +71,25 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
     # Initialize output matrix for weighted specific volume anomaly
     specvol_anom_weighted = np.empty([Mg, Ng])
     sigma0_weighted = np.empty([Mg, Ng])
-    SA_weighted = np.empty([Mg, Ng])
-    CT_weighted = np.empty([Mg, Ng])
+    SA_weighted     = np.empty([Mg, Ng])
+    CT_weighted     = np.empty([Mg, Ng])
 
-    
+    specvol_anom_weighted_sigma = np.empty([Mg, Ng])
+    sigma0_weighted_sigma = np.empty([Mg, Ng])
+    SA_weighted_sigma     = np.empty([Mg, Ng])
+    CT_weighted_sigma     = np.empty([Mg, Ng])
+
     # For each grid point, store the indices of profiles that are within 50 km
     profiles_in_range = {j: np.where(A[:, j] <= 50)[0] for j in range(A.shape[1])}
   
     # Loop over grid points
     for j in tqdm.tqdm(range(Ng), desc='Processing Gridpoints'):
         if argo:
-            n_profiles = np.where(mask_profiles)[0]
-            n_selected = np.intersect1d(n_profiles, profiles_in_range[j]) # profiles provided by 'n_profiles' that are within 50 km 
+            if mask_profiles is not None:
+                n_profiles = np.where(mask_profiles)[0]
+                n_selected = np.intersect1d(n_profiles, profiles_in_range[j]) # profiles provided by 'n_profiles' that are within 50 km 
+            else:
+                n_selected = profiles_in_range[j]
             # load distances  
             file_path = f'{folder_path}/distances_xstart{int(xstart)}_gridpoint_{j}.h5'
             with h5py.File(file_path, 'r') as f:
@@ -86,36 +102,58 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
             mask = np.intersect1d(n_selected, np.where(~np.isnan(profile_dist)))
         
         valid_dist = profile_dist[mask]
+
         valid_specvol = specvol_int[mask,:]
         valid_sigma0 = sigma0_int[mask,:]
         valid_SA = SA_int[mask,:]
         valid_CT = CT_int[mask,:]
-    
+
+        valid_specvol_sigma = specvol_sigma[mask,:]
+        valid_sigma0_sigma = sigma0_sigma[mask,:]       
+        valid_SA_sigma = SA_sigma[mask,:]
+        valid_CT_sigma = CT_sigma[mask,:]
+
         if np.all(np.isnan(valid_specvol)):
             specvol_anom_weighted[:, j] = np.nan
             sigma0_weighted[:, j] = np.nan
             SA_weighted[:, j] = np.nan
             CT_weighted[:, j] = np.nan
+
+            specvol_anom_weighted_sigma[:, j] = np.nan
+            sigma0_weighted_sigma[:, j] = np.nan
+            SA_weighted_sigma[:, j] = np.nan
+            CT_weighted_sigma[:, j] = np.nan
         else:
             for i in range(Mg):
                 valid_z = ~np.isnan(valid_specvol[:,i])
                 # gaussian weighting 
-                weights = np.exp(-valid_dist[valid_z]**2 / (2 * sigma**2))
+                weights = np.exp(-valid_dist[valid_z]**2 / (2 * omega**2))
                 weights /= np.sum(weights)
                 if weights.size == 0:
                     specvol_anom_weighted[i, j] = np.nan
                     sigma0_weighted[i, j] = np.nan
                     SA_weighted[i, j] = np.nan
                     CT_weighted[i, j] = np.nan
+
+                    specvol_anom_weighted_sigma[i, j] = np.nan
+                    sigma0_weighted_sigma[i, j] = np.nan
+                    SA_weighted_sigma[i, j] = np.nan
+                    CT_weighted_sigma[i, j] = np.nan
                 else:
                     specvol_anom_weighted[i, j] = np.nansum(valid_specvol[valid_z,i]* weights[:], axis=0)
                     sigma0_weighted[i, j] = np.nansum(valid_sigma0[valid_z,i] * weights[:], axis=0)
                     SA_weighted[i, j] = np.nansum(valid_SA[valid_z,i] * weights[:], axis=0)
                     CT_weighted[i, j] = np.nansum(valid_CT[valid_z,i] * weights[:], axis=0)
+
+                    specvol_anom_weighted_sigma[i, j] = np.nansum(valid_specvol_sigma[valid_z,i] * weights[:], axis=0)
+                    sigma0_weighted_sigma[i, j] = np.nansum(valid_sigma0_sigma[valid_z,i] * weights[:], axis=0)
+                    SA_weighted_sigma[i, j] = np.nansum(valid_SA_sigma[valid_z,i] * weights[:], axis=0)
+                    CT_weighted_sigma[i, j] = np.nansum(valid_CT_sigma[valid_z,i] * weights[:], axis=0)  
             
         
     # Save the result as a Numpy binary file
     np.save(output_file, [specvol_anom_weighted, sigma0_weighted, SA_weighted, CT_weighted], 'w')
+    np.save(output_file.replace('.npy', '_density.npy'), [specvol_anom_weighted_sigma, sigma0_weighted_sigma, SA_weighted_sigma, CT_weighted_sigma], 'w')
     print(f"Weighted data saved to {output_file}")
   
 if __name__ == "__main__": 
@@ -134,8 +172,8 @@ if __name__ == "__main__":
                         help="Vertical grid spacing in meters (default: 25)")
     parser.add_argument("--spacing_x", type=float, default=10,
                         help="Horizontal grid spacing in kilometers (default: 10)")
-    parser.add_argument("--sigma", type=float, default=30.0,
-                        help="Gaussian weighting sigma value (default: 30.0)")
+    parser.add_argument("--omega", type=float, default=30.0,
+                        help="Gaussian weighting omega value (default: 30.0)")
     parser.add_argument("--xstart", type=float, default=200,
                         help="Starting x-coordinate in kilometers (default: 200)")
     parser.add_argument("--xend", type=float, default=860,
@@ -147,8 +185,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
-    # Load the array from file:
-    mask_profiles = xr.open_dataarray(args.mask_profiles_file)
+    if args.mask_profiles_file == 'empty':
+        mask_profiles = None 
+    else:
+        mask_profiles = xr.open_dataarray(args.mask_profiles_file)
 
     notebook_dir = pathlib.Path().parent.absolute()
     parent_dir = notebook_dir.parent
@@ -161,17 +201,16 @@ if __name__ == "__main__":
         folder_path = [str(parent_dir) + '/data/distances'][0]
         
     # Pass optional arguments to the main function
-    # Pass optional arguments to the main function
     main(
         args.filename,
         mask_profiles,
         args.output_file,
-        folder_path,
         spacing_z=args.spacing_z,
         spacing_x=args.spacing_x,
-        sigma=args.sigma,
+        omega=args.omega,
         xstart=args.xstart,
         xend=args.xend,
         argo=args.argo,
         ctd=args.ctd,
+        folder_path=folder_path,
     )

@@ -44,7 +44,7 @@ def main(filename, case_appendix):
             
 
     strong_years = {2008, 2014, 2015, 2016, 2017, 2018, 2012, 2019, 2020, 2022}
-    weak_years= {2004, 2005, 2006, 2007, 2009, 2010, 2011, 2013, 2021, 2023}
+    weak_years = {2004, 2005, 2006, 2007, 2009, 2010, 2011, 2013, 2021, 2023}
     
     for season in ['winter', 'summer', 'spring']:
         mask_strong = np.full(argo_ds.TIME.shape, False)  # Initialize strong mask
