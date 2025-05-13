@@ -6,10 +6,12 @@ parent_dir = script_dir.parents[0]
 sys.path.append(str(parent_dir))
 
 from labsea_project import tools
+import matplotlib
+import numpy as np
+matplotlib.use('agg')  # use agg backend to prevent creating plot windows during tests
 
-def test_convert_units_var():
-    var_values = 100
-    current_units = 'cm/s'
-    new_units = 'm/s'
-    converted_values = tools.convert_units_var(var_values, current_units, new_units)
-    assert converted_values == 1.0
+def test_calc_dyn_h():
+    specvol = np.ones((1, 3))
+    p = np.ones((1, 3)) * 10
+    dyn_h = tools.calc_dyn_h(specvol, p)
+    assert np.allclose(dyn_h, 0)
