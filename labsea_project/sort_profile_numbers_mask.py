@@ -1,5 +1,4 @@
 import xarray as xr
-import pandas as pd
 import numpy as np
 import argparse
 import pathlib
@@ -7,7 +6,7 @@ import pathlib
 def main(filename, case_appendix):
     # Load dataset
     argo_ds = xr.open_dataset(filename, engine="netcdf4")
-    #argo_ds = argo_ds.where(argo_ds.TIME.dt.year >= 2004, drop=True)
+    # argo_ds = argo_ds.where(argo_ds.TIME.dt.year >= 2004, drop=True)
     
     for year in [2013, 2023]:
         for season in ['winter', 'summer', 'spring', 'mayjunjul']:
@@ -28,7 +27,6 @@ def main(filename, case_appendix):
             elif season == 'mayjunjul':
                 mask = (argo_ds.TIME.dt.year >= 2004) & (argo_ds.TIME.dt.year <= year) & \
                            ((argo_ds.TIME.dt.month == 5) | (argo_ds.TIME.dt.month == 6) | (argo_ds.TIME.dt.month == 7))
-
 
             # Save masks
             if case_appendix == 'all':
