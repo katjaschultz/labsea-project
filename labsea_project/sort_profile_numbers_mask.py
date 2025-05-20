@@ -1,5 +1,4 @@
 import xarray as xr
-import pandas as pd
 import numpy as np
 import argparse
 import pathlib
@@ -7,7 +6,7 @@ import pathlib
 def main(filename, case_appendix):
     # Load dataset
     argo_ds = xr.open_dataset(filename, engine="netcdf4")
-    #argo_ds = argo_ds.where(argo_ds.TIME.dt.year >= 2004, drop=True)
+    # argo_ds = argo_ds.where(argo_ds.TIME.dt.year >= 2004, drop=True)
     
     for year in [2013, 2023]:
         for season in ['winter', 'summer', 'spring', 'mayjunjul']:
@@ -29,12 +28,11 @@ def main(filename, case_appendix):
                 mask = (argo_ds.TIME.dt.year >= 2004) & (argo_ds.TIME.dt.year <= year) & \
                            ((argo_ds.TIME.dt.month == 5) | (argo_ds.TIME.dt.month == 6) | (argo_ds.TIME.dt.month == 7))
 
-
             # Save masks
             if case_appendix == 'all':
-                case = f'04{year-2000}{season}_{case_appendix}'
+                case = f'04{year-2000}_{season}_{case_appendix}'
             else:
-                case = f'04{year-2000}{season}'
+                case = f'04{year-2000}_{season}'
 
             script_dir = pathlib.Path().parent.absolute()
             parent_dir = script_dir.parents[0]
@@ -42,7 +40,6 @@ def main(filename, case_appendix):
             print(f"Processing: {case}")
             mask.to_netcdf(parent_dir / f'data/profile masks/mask_{case}.nc','w')
             
-
     strong_years = {2008, 2014, 2015, 2016, 2017, 2018, 2012, 2019, 2020, 2022}
     weak_years = {2004, 2005, 2006, 2007, 2009, 2010, 2011, 2013, 2021, 2023}
     
@@ -75,7 +72,6 @@ def main(filename, case_appendix):
                     (argo_ds.TIME.dt.month == 11)
                 )
 
-        
         for year in weak_years:
             if season == 'winter':
                 mask_weak |= (argo_ds.TIME.dt.year == year) & (
@@ -119,7 +115,7 @@ def main(filename, case_appendix):
   
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Compute weighted specific volume anomaly matrix from selected profiles."
+        description="Compute masks to select profiles to process argo float data sorted by decade / season / convective activity."
     )
     parser.add_argument("filename", type=str, help='input filename')
     

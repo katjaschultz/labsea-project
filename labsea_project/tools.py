@@ -81,7 +81,7 @@ def derive_abs_geo_v(specvol_anom, sigma0, p, ref_vel, lon_ar7w, lat_ar7w, xhalf
     x_topo, topo = np.load(parent_dir / 'data/corrected_topography.npy')
 
     ind = [np.argmin(abs(x_topo - d)) for d in xhalf]
-    mask_topo = Z <= topo[ind]*-1e-3
+    mask_topo = Z <= topo[ind]*-1
 
     v[mask_topo] = np.nan
     sigma0half[mask_topo] = np.nan
@@ -152,7 +152,6 @@ def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
         return strf_z, strf_x, imbalance, mask_x
     
 
-    
 def find_adjustment_velocity(v, x, z, onlyEast=False):
 
     """ Find the adjustment velocity to minimize the vertical imbalance of the streamfunction.
