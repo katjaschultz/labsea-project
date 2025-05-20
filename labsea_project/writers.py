@@ -97,10 +97,3 @@ def create_dataset(case, file_case, omega, xstart, xend, spacing_z=25, spacing_x
     ds['imbalance'] = imbalance
 
     return ds
-
-
-
-
-
-
-
