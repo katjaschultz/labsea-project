@@ -151,6 +151,32 @@ def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
     else:
         return strf_z, strf_x, imbalance, mask_x
     
+def derive_transport_in_density_space(v, sigma0half, sigma_bins, sensitivity = 0, onlyEast=False):
+
+    if onlyEast is False:
+        v = v + sensitivity
+    else:
+        v[:,-10:] = v[:,-10:] + sensitivity
+    
+    A = 10000*25 # area of a grid cell in depth space
+    T = v * A    # tranport of each grid cell
+
+    bin_indices = np.digitize(sigma0half, sigma_bins)
+
+    Q0 = np.zeros(len(sigma_bins)) # last bin contains nan values
+    Q = np.zeros(len(sigma_bins))
+
+    # calc transport in each bin
+    # bin_indices corresponds to bin smaller than the value of the bin, e.g the first bin is 26.8, so all values smaller than 26.8 are in bin 0
+    for i in range(0,len(sigma_bins)):
+        bin_mask = bin_indices == i
+        Q0[i] = np.nansum(T[bin_mask])*10**(-6) # in Sv
+
+    # cumulative sum of the transport
+    for i in range(0,len(sigma_bins)):
+        Q[i] = np.nansum(Q0[:i+1])
+
+    return Q0, Q
 
 def find_adjustment_velocity(v, x, z, onlyEast=False):
 
