@@ -28,28 +28,37 @@ value_range = [-0.3, -2.00000000e-01, -1.75000000e-01, -1.50000000e-01,
         1.75000000e-01,  2.00000000e-01, 0.3]
 norm = BoundaryNorm(value_range, ncolors=vel_cmap.N, clip=True)
 vticks_vel=[-0.2, -0.1, 0, 0.1, 0.2]
-#cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=vel_cmap), ax=ax, ticks=vticks_vel, extend='both')
 
 
-# -------------------------------------------------------------------------------------------------------------
-# density contours
-#axes[2].contour(dis, z, V, levels=np.arange(-0.3, 0.4, 0.1), colors='w', linewidth=0.8)
-#axes[2].contour(x[1:-1], z, rho.T[:, 1:-1], levels=np.arange(27.6, 27.82, 0.02), colors='brown', linewidths=0.5, zorder=2)
-#axes[2].contour(x[:], z, rho.T[:, :], [27.8], colors='k', linewidths=1.2, zorder=1)
+def plot_abs_geo_v(ds, title_string, fig_string, saving=False):
+    """
+    Plot absolute geostrophic velocity from an xarray.Dataset.
+    
+    Parameters:
+        ds (xarray.Dataset): Dataset containing all required variables.
+        title_string (str): Title for the plot.
+        fig_string (str): String for saving the figure.
+        saving (bool): Whether to save the figure.
+    """
+    # Extract variables from dataset
+    v = ds['v'].values
+    sigma0half = ds['sigma0half'].values
+    xhalf = ds['xhalf'].values
+    z = ds['z'].values
 
-def plot_abs_geo_v(v, sigma0half, Xhalf, Z, title_string, fig_string, saving=False):
-
-    fig, ax = plt.subplots(1,1, figsize=(10,5))
-    pc = ax.pcolormesh( Xhalf, Z*1e3, v, cmap=vel_cmap, norm=norm, zorder=0)
-    ax.contour(Xhalf, Z*1e3, sigma0half, levels=np.arange(27.6, 27.82, 0.02), colors='k', linewidths=0.5)
-    ax.contour(Xhalf, Z*1e3, sigma0half, [27.8] )
+    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    pc = ax.pcolormesh(xhalf, z , v, cmap=vel_cmap, norm=norm, zorder=0)
+    ax.contour(xhalf, z , sigma0half, levels=np.arange(27.6, 27.82, 0.02), colors='k', linewidths=0.5)
+    ax.contour(xhalf, z , sigma0half, [27.8])
     ax.set_title(title_string, fontsize=12)
-    ax.plot(x_topo, topo * -1, color=[.3,.3,.3], linewidth=0.5, zorder=3)
-    ax.fill_betweenx(topo*-1, x_topo, where=(x_topo <= 205.622405357364), color=[.8,.8,.8], zorder=2)
+    
+    ax.plot(x_topo, topo * -1, color=[.3, .3, .3], linewidth=0.5, zorder=3)
+    ax.fill_betweenx(topo * -1, x_topo, where=(x_topo <= 205.622405357364), color=[.8, .8, .8], zorder=2)
     right_mask = (x_topo >= 855.0984735257368)
-    ax.fill_betweenx(topo[right_mask]*-1, x_topo[right_mask], x2=1000, color=[.8,.8,.8], zorder=2)
-    ax.set_xlim([155,925])
-    ax.set_ylim([-2000,0])
+    ax.fill_betweenx(topo[right_mask] * -1, x_topo[right_mask], x2=1000, color=[.8, .8, .8], zorder=2)
+    
+    ax.set_xlim([155, 925])
+    ax.set_ylim([-2000, 0])
     cbar = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=vel_cmap), ax=ax, ticks=vticks_vel, extend='both')
     cbar.set_label('velocity m/s')
     ax.set_xlabel('distance km')
@@ -60,7 +69,6 @@ def plot_abs_geo_v(v, sigma0half, Xhalf, Z, title_string, fig_string, saving=Fal
     if saving:
         plt.savefig(parent_dir / f'figures/abs_geo_v_{fig_string}.png')
     plt.show()
-
 
 
 
