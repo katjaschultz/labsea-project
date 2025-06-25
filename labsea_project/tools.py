@@ -268,6 +268,69 @@ def load_selected_profiles(filename, mask_profiles=np.array([])):
     return x_data, z_data, specvol_anom, sigma0, argo_sel.SA.values, argo_sel.CT.values
 
 
+def select_profiles_and_save_masks( filename, case_str, season, years ):
+
+    """
+    Selects profiles based on the given season and year, and saves the masks to a file.
+    
+    Parameters:
+    filename (str): Path to the input netCDF file containing Argo data.
+    case_str (str): Case string to append to the output file name to indicate what years and season is selected.
+    season (str): Season to filter profiles by ('spring', 'summer', 'winter', 'all_year', [list of months]).
+                    default (used in my analysis) 
+                            spring contains April, May, June
+                            summer contains July, August, September, October, November
+                            winter contains January, February, March, December
+    years (list): Year to filter profiles by given as a list
+    
+    """
+    
+    # Load the dataset
+    argo_ds = xr.open_dataset(filename)
+    mask = np.full(argo_ds.TIME.shape, False)  # Initialize mask
+
+    for year in years:
+        if season == 'winter':
+            mask |= (argo_ds.TIME.dt.year == year) & (
+                (argo_ds.TIME.dt.month == 1) | 
+                (argo_ds.TIME.dt.month == 2) | 
+                (argo_ds.TIME.dt.month == 12) | 
+                (argo_ds.TIME.dt.month == 3)
+            )
+    
+        elif season == 'spring':
+            mask |= (argo_ds.TIME.dt.year == year) & (
+                (argo_ds.TIME.dt.month == 4) | 
+                (argo_ds.TIME.dt.month == 5) | 
+                (argo_ds.TIME.dt.month == 6)
+            )
+    
+        elif season == 'summer':
+            mask |= (argo_ds.TIME.dt.year == year) & (
+                (argo_ds.TIME.dt.month == 7) | 
+                (argo_ds.TIME.dt.month == 8) | 
+                (argo_ds.TIME.dt.month == 9) |  
+                (argo_ds.TIME.dt.month == 10) | 
+                (argo_ds.TIME.dt.month == 11)
+            )
+        elif season == 'all_year':
+            mask |= (argo_ds.TIME.dt.year == year)
+        elif isinstance(season, list):
+            # If season is a list of months, filter by those months
+            mask |= (argo_ds.TIME.dt.year == year) & (argo_ds.TIME.dt.month.isin(season))
+
+    # save mask to data path
+    script_dir = pathlib.Path().parent.absolute()
+    parent_dir = script_dir.parents[0]
+
+    # make sure the directory exists
+    mask_dir = parent_dir / 'data/profile masks'
+    mask_dir.mkdir(parents=True, exist_ok=True)
+
+    mask.to_netcdf(parent_dir / f'data/profile masks/mask_{case_str}.nc','w')
+    print(f"Mask saved to {parent_dir / f'data/profile masks/mask_{case_str}.nc'}")
+
+
 
 def interpolate_profiles(values, z_data, z):
     """ Interpolate profiles to a common depth grid.

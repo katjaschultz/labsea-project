@@ -21,3 +21,7 @@ pypandoc
 myst-nb
 importlib_resources
 scikit-learn
+argopy
+
+# if you encounter issues with installing argopy, you can try:
+# pip install git+https://github.com/euroargodev/argopy.git@master

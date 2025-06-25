@@ -9,3 +9,8 @@ gsw
 matplotlib
 cartopy
 cmocean 
+argopy
+dask
+
+# if you encounter issues with installing argopy, you can try:
+# pip install git+https://github.com/euroargodev/argopy.git@master
