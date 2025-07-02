@@ -1,8 +1,6 @@
 import xarray as xr
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import scipy
 
 def fit_of_running_mean(x, y, window_size=5, degree=5):
 
@@ -88,9 +86,7 @@ def derive_poly_func(input_file, start_time, end_time, cut_season=False, season=
     if cut_edges:
         Ds = Ds.where((Ds['x'] >= start_x) & (Ds['x'] <= end_x), drop=True)
 
-    #plt.figure()
-    #plt.scatter(ds.datetime.dt.year, ds.datetime.dt.month)
-    #plt.show()
+
                 
     xA0, yA0 = Ds['x'].values, Ds['vs_adj'].values*100
 

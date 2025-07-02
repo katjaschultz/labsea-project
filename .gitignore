@@ -29,6 +29,8 @@ MANIFEST
 # Specifics
 data/
 notebooks/baukasten.ipynb
+notebooks/plotting.ipynb
+notebooks/plotting_old.ipynb
 docs/
 
 # PyInstaller

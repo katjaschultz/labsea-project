@@ -9,7 +9,7 @@ parent_dir = script_dir.parents[0]
 sys.path.append(str(parent_dir))
 
 from labsea_project import reference_func as ref
-from labsea_project import utilities, plotters, tools
+from labsea_project import tools
 
 
 def create_dataset(case, file_case, omega, xstart, xend, spacing_z=25, spacing_x=10, start_time='2004-01-01', end_time='2013-12-31', mask_sigma=True):

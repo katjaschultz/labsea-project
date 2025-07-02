@@ -1,5 +1,4 @@
 netcdf4
-pooch
 h5py
 xarray
 numpy
