@@ -51,5 +51,5 @@ Clone the repository and activate a new environment on your local machine
 ## 📌 Notes
 
 * 🌐 Data download may take a while and requires an internet connection.
-* 🧩 The project is modular: you can use individual functions or the full workflow as needed.
+* 🧩 The project is in some extent modular: you can use individual functions (tools, argo data loading/ processing, ...) or the full workflow as needed.
 * ✉️ For questions or contributions, please contact me.
