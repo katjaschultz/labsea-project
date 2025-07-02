@@ -3,12 +3,16 @@ import xarray as xr
 import gsw
 from labsea_project.utilities import ll2km, rotate_point_corr
 import scipy
-import xarray as xr
-import scipy.integrate
 
 import pathlib
 import sys
-import matplotlib.pyplot as plt
+
+"""
+This module provides core computational functions for processing and analyzing oceanographic data 
+in the labsea-project. It includes routines for calculating dynamic height, absolute geostrophic 
+velocity, overturning streamfunctions, transport in density space, profile selection and interpolation, 
+and other utilities needed for the analysis of Argo and CTD datasets.
+"""
 
 script_dir = pathlib.Path().parent.absolute()
 parent_dir = script_dir.parents[0]
@@ -78,7 +82,7 @@ def derive_abs_geo_v(specvol_anom, sigma0, p, ref_vel, lon_ar7w, lat_ar7w, xhalf
     sigma0half = (sigma0[:,1:] + sigma0[:,:-1])/2
     mask    = sigma0half <= 27.8
   
-    x_topo, topo = np.load(parent_dir / 'data/corrected_topography.npy')
+    x_topo, topo = np.load(parent_dir / 'demo data/corrected_topography.npy')
 
     ind = [np.argmin(abs(x_topo - d)) for d in xhalf]
     mask_topo = Z <= topo[ind]*-1

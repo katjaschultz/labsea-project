@@ -1,14 +1,5 @@
-# Based on https://github.com/voto-ocean-knowledge/votoutils/blob/main/votoutils/utilities/utilities.py
-import re
-import numpy as np
-import pandas as pd
-import logging
-import datetime
-import xarray as xr
-
 import numpy as np
 import math
-
 from geopy.distance import geodesic
 
 def ll2km(lon, lat, bbox):

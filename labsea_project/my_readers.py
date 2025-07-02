@@ -7,8 +7,6 @@ parent_dir = script_dir.parents[0]
 sys.path.append(str(parent_dir))
 
 import argopy
-import xarray as xr
-import time
 
 argopy.set_options(mode='research')
 from argopy import DataFetcher as ArgoDataFetcher

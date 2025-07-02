@@ -1,5 +1,5 @@
-netcdf4
-pooch
+
+netCDF4
 xarray
 numpy
 pandas  
@@ -7,10 +7,15 @@ scipy
 tqdm
 gsw
 matplotlib
-cartopy
-cmocean 
-argopy
-dask
+argopy @ git+https://github.com/euroargodev/argopy.git@6a21764bcf124437ac1da344dcfc364e55eb5c45
+pathlib
+sys
+time
+math
+geopy
+argparse
+tqdm
+subprocess
 
-# if you encounter issues with installing argopy, you can try:
-# pip install git+https://github.com/euroargodev/argopy.git@master
+
+

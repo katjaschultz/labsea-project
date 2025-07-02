@@ -4,7 +4,6 @@ import argparse
 import numpy as np
 import xarray as xr
 import tqdm
-import h5py
 import pathlib
 
 script_dir = pathlib.Path().parent.absolute()
