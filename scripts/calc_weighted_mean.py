@@ -2,20 +2,16 @@
 import sys
 import argparse
 import numpy as np
-import gsw
 import xarray as xr
-import scipy
 import tqdm
 import h5py
 import pathlib
-import os
-import importlib_resources
 
 script_dir = pathlib.Path().parent.absolute()
 parent_dir = script_dir.parents[0]
 sys.path.append(str(parent_dir))
 
-from labsea_project import readers, writers, plotters, tools, utilities
+from labsea_project import tools
 
 '''This script computes a weighted mean of the specific volume anomaly, sigma0, SA and CT from selected profiles.
 It can handle both Argo and CTD data, applying a Gaussian weighting based on the distance of profiles to grid points.
@@ -53,15 +49,12 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
     if argo:
         # Load profiles
         x_data, z_data, specvol_anom, sigma0, SA, CT = tools.load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
-    
         N, M = specvol_anom.shape  # number of profiles, levels        
-
         # Interpolate on common z grid
         specvol_int = tools.interpolate_profiles(specvol_anom, z_data, z)
         sigma0_int = tools.interpolate_profiles(sigma0, z_data, z)
         SA_int = tools.interpolate_profiles(SA, z_data, z)
         CT_int = tools.interpolate_profiles(CT, z_data, z) 
-        
         # Distance Matrix A[i, j] = |x_data[i,0] - grid_points[0,0,j]|
         A = np.abs(x_data[:, 0][:, None] - grid_points[0, 0, :][None, :])
 
@@ -86,7 +79,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
     
     # For each grid point, store the indices of profiles that are within 50 km
     profiles_in_range = {j: np.where(A[:, j] <= 50)[0] for j in range(A.shape[1])}
-  
+    
     # Loop over grid points
     for j in tqdm.tqdm(range(Ng), desc='Processing Gridpoints'):
         if argo:
@@ -94,13 +87,10 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
                 n_profiles = np.where(mask_profiles)[0]
                 n_selected = np.intersect1d(n_profiles, profiles_in_range[j]) # profiles provided by 'n_profiles' that are within 50 km 
             else:
-                n_selected = profiles_in_range[j]
-            # load distances  
-            file_path = f'{folder_path}/distances_xstart{int(xstart)}_gridpoint_{j}.h5'
-            with h5py.File(file_path, 'r') as f:
-                profile_dist = f[f'ngrid_{j}'][:]
-
+                n_selected = profiles_in_range[j]   
+            profile_dist = A[:, j]  # distances for selected profiles
             mask = np.intersect1d(n_selected, np.where(~np.isnan(profile_dist)))
+
         elif ctd:
             n_selected = profiles_in_range[j]
             profile_dist = A[:,j]
@@ -111,7 +101,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
         valid_sigma0 = sigma0_int[mask,:]
         valid_SA = SA_int[mask,:]
         valid_CT = CT_int[mask,:]
-    
+
         if np.all(np.isnan(valid_specvol)):
             specvol_anom_weighted[:, j] = np.nan
             sigma0_weighted[:, j] = np.nan
@@ -178,7 +168,6 @@ if __name__ == "__main__":
         print('check')
     else:
         folder_path = [str(parent_dir) + '/data/distances'][0]
-        print('folder_path', folder_path)
         
     # Pass optional arguments to the main function
     main(

@@ -15,7 +15,6 @@ sys.path.append(str(parent_dir))
     It can filter profiles based on their proximity to a specified line (AR7W line and 75km within) and bathymetric
     constraints within 1000isobars. It will automatically generate nc-files. """
 
-
 class ArgoDataProcessor:
     
     def __init__(self, filename):

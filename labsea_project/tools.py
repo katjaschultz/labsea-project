@@ -146,10 +146,20 @@ def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
     
     imbalance = strf_x[-1]
 
+    piecewise_trapz_z = np.array([
+    scipy.integrate.trapezoid(vel.mean(dim="distance", skipna=True)[i:i+2] * delta_x[i:i+2]*1e3, x=vel.depth[i:i+2]*-1) * 10**(-6) 
+    for i in range(len(vel.depth) - 1)])
+
+    piecewise_trapz_x = np.array([
+    scipy.integrate.trapezoid(vh[~np.isnan(vh)][i:i+2] * delta_z[i:i+2], x=vel.distance[~np.isnan(vh)][i:i+2]) * 10**(-6)
+    for i in range(len(vel.distance) - 1)])
+
     if returnDelta:
-        return strf_z, strf_x, imbalance, mask_x, delta_x, delta_z
+        return strf_z, strf_x, imbalance, mask_x, piecewise_trapz_z, piecewise_trapz_x, delta_x, delta_z
     else:
-        return strf_z, strf_x, imbalance, mask_x
+        return strf_z, strf_x, imbalance, mask_x, piecewise_trapz_z, piecewise_trapz_x
+    
+
     
 def derive_transport_in_density_space(v, sigma0half, sigma_bins, sensitivity = 0, onlyEast=False):
 
@@ -205,7 +215,7 @@ def find_adjustment_velocity(v, x, z, onlyEast=False):
         imb_z = np.zeros(len(sensitivity))
 
         for i, sens in enumerate(sensitivity):
-            strf_z1, strf_x1, imbalance, _   = derive_strf(v, x, z, sensitivity=sens, onlyEast=onlyEast)
+            strf_z1, strf_x1, imbalance, _, _, _ = derive_strf(v, x, z, sensitivity=sens, onlyEast=onlyEast)
             imb_z[i] = strf_z1[-1]-strf_z1[0]
             imb_x[i] = imbalance
 

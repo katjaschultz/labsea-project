@@ -64,7 +64,7 @@ def create_dataset(case, file_case, omega, xstart, xend, spacing_z=25, spacing_x
     # calculate overtruning and horizontal transports
 
     # load reference velocity
-    input_file = parent_dir / 'data/yomaha_velocities_referenced_to_1000dbar_new.nc'
+    input_file = parent_dir / 'demo data/yomaha_velocities_referenced_to_1000dbar_new.nc'
     
     if season in ['spring', 'summer', 'winter', 'mayjunjul']:
         cut_season = True
@@ -79,22 +79,26 @@ def create_dataset(case, file_case, omega, xstart, xend, spacing_z=25, spacing_x
 
     argo_ref = poly_func(xhalf) / 100 
 
-    lon_ar7w, lat_ar7w = np.load(parent_dir / f'data/coordinates_AR7W_xstart{xstart}.npy') # represent coordinates of chosen grid (10km spacing in x)
+    lon_ar7w, lat_ar7w = np.load(parent_dir / f'demo data/coordinates_AR7W_xstart{xstart}.npy') # represent coordinates of chosen grid (10km spacing in x)
     _, Z  = np.meshgrid(x, z)
     P = gsw.p_from_z(Z, lat_ar7w)
 
     v, sigma0half    = tools.derive_abs_geo_v(specvol_anom, sigma0, P, argo_ref, lon_ar7w, lat_ar7w, xhalf, Zhalf, mask_sigma=mask_sigma)
-    strf_z, strf_x, imbalance, mask_xa = tools.derive_strf(v, xhalf*1e3, z*-1)
+    strf_z, strf_x, imbalance, mask_xa, piecewise_trapz_z, piecewise_trapz_x = tools.derive_strf(v, xhalf*1e3, z*-1)
 
     # add variables to dataset (coords: xhalf, z)
     # add xhalf as a coordinate
     ds = ds.assign_coords(xhalf=('xhalf', xhalf))
+    ds['z0'] = (['z0'], z[1:]) # exclude 0 point from z-coordinate
+    ds['x0'] = (['x0'], xhalf[1:]) # exclude 0 point from x-coordinate
 
     ds['v'] = (['z', 'xhalf'], v)
     ds['sigma0half'] = (['z', 'xhalf'], sigma0half)
     ds['strf_z'] = (['z'], strf_z)
     ds['strf_x'] = (['xhalf'], strf_x)
     ds['mask_xa'] = (['xhalf'], mask_xa.data)
+    ds['piecewise_trapz_z'] = (['z0'], piecewise_trapz_z)
+    ds['piecewise_trapz_x'] = (['x0'], piecewise_trapz_x)
     ds['argo_ref'] = (['xhalf'], argo_ref)
     ds['imbalance'] = imbalance
 
