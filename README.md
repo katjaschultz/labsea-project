@@ -25,10 +25,8 @@ labsea_project/
 notebooks/
     demo.ipynb         # Example workflow notebook
 demo data/             # data you need for the demo (coordinates, topography, etc.)
-data/
-    ...                # Data files (downloaded, processed, masks, etc.)
-scripts/
-    ...                # ⚙️ Processing scripts
+data/                  # Data files (downloaded, processed, masks, etc.), this folder should be created when working with the demo
+scripts/               # Processing scripts
 ```
 
 ## 🔧 Usage
