@@ -34,6 +34,7 @@ data/
 notebooks/baukasten.ipynb
 notebooks/plotting.ipynb
 notebooks/plotting_old.ipynb
+notebooks/paper_work.ipynb
 docs/
 
 # PyInstaller
