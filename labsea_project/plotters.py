@@ -87,7 +87,8 @@ def plot_overturning_transport(
     main_color="tab:blue",
     extra_lines=None,  # List of dicts: [{'ds': Ds2, 'label': 'Other', 'color': 'red'}, ...]
     title="Overturning Transport",
-    savepath=None
+    savepath=None,
+    x_limits=None
 ):
     """
     Plot overturning transport from one or more datasets.
@@ -111,13 +112,17 @@ def plot_overturning_transport(
             color = line.get('color', None)
             ax.plot(ds['strf_z'], ds['z'], label=label, color=color)
             ax.plot(ds['piecewise_trapz_z'], ds['z0'], color=color, alpha=0.8, linestyle='--')
-    ax.legend()
+
+    # plot the legend outide the plot at the bottom
+    ax.legend(loc='upper center', bbox_to_anchor=(0.25, -0.15), ncol=2, frameon=True, fontsize=10)        
     ax.set_ylabel("Depth m")
     ax.set_xlabel("Transport Sv")
-    ax.axvline(0, color='k', linestyle='--', linewidth=1.5, alpha=0.5)
+    ax.axvline(0, color='k', linestyle=':', linewidth=1.5, alpha=0.5)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.set_title(title)
+    if x_limits is not None:
+        ax.set_xlim(x_limits)
     plt.tight_layout()
     if savepath:
         plt.savefig(savepath, dpi=300, bbox_inches='tight')

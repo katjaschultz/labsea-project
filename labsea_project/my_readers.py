@@ -31,7 +31,7 @@ def fetch_argo_data_per_year(start_year=2004, end_year=2023, retries=5, wait_sec
     data_dir.mkdir(exist_ok=True)
 
     for year in range(start_year, end_year + 1):
-        file_path = data_dir / f'Argo_{year}.nc'
+        file_path = data_dir / f'ArgoFetched_{year}.nc'
 
         # Skip if file already exists
         if file_path.exists():
