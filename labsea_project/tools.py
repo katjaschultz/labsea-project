@@ -305,12 +305,17 @@ def select_profiles_and_save_masks( filename, case_str, season, years ):
 
     for year in years:
         if season == 'winter':
-            mask |= (argo_ds.TIME.dt.year == year) & (
+            mask_1 = np.full(argo_ds.TIME.shape, False)
+            mask_2 = np.full(argo_ds.TIME.shape, False)
+            mask_1 |= (argo_ds.TIME.dt.year == year) & (
                 (argo_ds.TIME.dt.month == 1) | 
                 (argo_ds.TIME.dt.month == 2) | 
-                (argo_ds.TIME.dt.month == 12) | 
                 (argo_ds.TIME.dt.month == 3)
             )
+            mask_2 |= (argo_ds.TIME.dt.year == year-1) & (
+                (argo_ds.TIME.dt.month == 12)
+            )
+            mask |= mask_1 | mask_2
     
         elif season == 'spring':
             mask |= (argo_ds.TIME.dt.year == year) & (
