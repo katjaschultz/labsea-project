@@ -87,3 +87,76 @@ lat_line_1, lon_line_1 = generate_coordinates_along_line(start_coordinates_1, en
 lat_line_A, lon_line_A = generate_coordinates_along_line(start_coordinates_A, end_coordinates_A, interval_distance_km)
 
 lat_line_a, lon_line_a = generate_coordinates_along_line(pa1, pa2, interval_distance_km)
+
+def fit_of_running_mean(x, y, window_size=5, degree=5):
+    """ Fit a polynomial of degree n to the running mean of x and y.
+        Returns the polynomial function."""
+
+    x_smooth = []
+    y_smooth = []
+
+    for i in range(len(x) - window_size + 1):
+        x_smooth.append(np.mean(x[i:i+window_size]))
+        y_smooth.append(np.mean(y[i:i+window_size]))
+        
+    x_smoothR, y_smoothR = np.array(x_smooth), np.array(y_smooth)
+        
+    # Fit a polynomial of degree n
+    coefficientsA = np.polyfit(x_smoothR, y_smoothR, degree)
+    poly_functionA = np.poly1d(coefficientsA)
+
+    #poly_functionA = scipy.interpolate.interp1d(x_smoothR, y_smoothR, kind='linear', fill_value='extrapolate')
+
+    return poly_functionA
+
+def select_datapoints_by_season_and_year(dataset, season, years):
+    """
+    Selects profiles from the dataset based on the given season and year.
+    
+    Parameters:
+    dataset (xarray.Dataset): The dataset containing datetime information.
+    season (str or list): Season to filter profiles by ('spring', 'summer', 'winter', 'all_year', [list of months]).
+    years (list): List of years to filter profiles by.
+    
+    Returns:
+    mask (numpy.ndarray): Boolean mask indicating selected profiles.
+    """
+    
+    mask = np.full(dataset.datetime.shape, False)  # Initialize mask
+    for year in years:
+            if season == 'winter':
+                mask_1 = np.full(dataset.datetime.shape, False)
+                mask_2 = np.full(dataset.datetime.shape, False)
+                mask_1 |= (dataset.datetime.dt.year == year) & (
+                    (dataset.datetime.dt.month == 1) | 
+                    (dataset.datetime.dt.month == 2) | 
+                    (dataset.datetime.dt.month == 3)
+                )
+                mask_2 |= (dataset.datetime.dt.year == year-1) & (
+                    (dataset.datetime.dt.month == 12)
+                )
+                mask |= mask_1 | mask_2
+        
+            elif season == 'spring':
+                mask |= (dataset.datetime.dt.year == year) & (
+                    (dataset.datetime.dt.month == 4) | 
+                    (dataset.datetime.dt.month == 5) | 
+                    (dataset.datetime.dt.month == 6)
+                )
+        
+            elif season == 'summer':
+                mask |= (dataset.datetime.dt.year == year) & (
+                    (dataset.datetime.dt.month == 7) | 
+                    (dataset.datetime.dt.month == 8) | 
+                    (dataset.datetime.dt.month == 9) |  
+                    (dataset.datetime.dt.month == 10) | 
+                    (dataset.datetime.dt.month == 11)
+                )
+            elif season == 'all_year':
+                mask |= (dataset.datetime.dt.year == year)
+            elif isinstance(season, list):
+                # If season is a list of months, filter by those months
+                mask |= (dataset.datetime.dt.year == year) & (dataset.datetime.dt.month.isin(season))
+
+    return mask
+

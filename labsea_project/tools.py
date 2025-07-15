@@ -2,6 +2,7 @@ import numpy as np
 import xarray as xr
 import gsw
 from labsea_project.utilities import ll2km, rotate_point_corr
+from labsea_project import utilities
 import scipy
 
 import pathlib
@@ -349,6 +350,35 @@ def select_profiles_and_save_masks( filename, case_str, season, years ):
     mask.to_netcdf(parent_dir / f'data/profile masks/mask_{case_str}.nc','w')
     print(f"Mask saved to {parent_dir / f'data/profile masks/mask_{case_str}.nc'}")
 
+def derive_poly_func(input_file,  years, season='spring', degree=5, start_x=200, end_x=860, cut_edges=False, returnXY=False): 
+    """
+    Derives a polynomial function from the dataset based on the specified season and years.
+    Here we use preprocessed Yomaha data that is referenced to 1000 dbar and rotated to be in cross direction of the AR7W line.
+    """
+    
+    dataset    = xr.open_dataset(input_file)
+    mask = utilities.select_datapoints_by_season_and_year(dataset, season, years)
+    Ds = dataset.where(mask, drop=True)
+    
+    if cut_edges:
+        Ds = Ds.where((Ds['x'] >= start_x) & (Ds['x'] <= end_x), drop=True)
+    
+    xA0, yA0 = Ds['x'].values, Ds['vs_adj'].values*100
+
+    iS = np.argsort(xA0)
+    xA0, yA0 = xA0[iS], yA0[iS]
+    
+    iN = np.isnan(yA0)
+    x = xA0[~iN]
+    y = yA0[~iN]
+
+    poly_function = utilities.fit_of_running_mean(x, y, window_size=5, degree=degree)
+
+    if returnXY:
+        return poly_function, x, y
+        
+    return poly_function
+    
 
 
 def interpolate_profiles(values, z_data, z):

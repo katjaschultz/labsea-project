@@ -12,7 +12,7 @@ from labsea_project import reference_func as ref
 from labsea_project import tools
 
 
-def create_dataset(case, file_case, omega, xstart, xend, spacing_z=25, spacing_x=10, start_time='2004-01-01', end_time='2013-12-31', mask_sigma=True):
+def create_dataset(case, file_case, omega, xstart, xend, season, years, spacing_z=25, spacing_x=10, mask_sigma=True):
 
     ''' Function to load data from files, calculate overturning and return a dataset with all relevant variables
     Input parameters:
@@ -25,8 +25,8 @@ def create_dataset(case, file_case, omega, xstart, xend, spacing_z=25, spacing_x
     - xend: float, x-coordinate of the end point of the AR7W line
     - spacing_z: float, spacing in z-direction for the grid
     - spacing_x: float, spacing in x-direction for the grid
-    - start_time: string, start time for the reference velocity (default is '2004-01-01')
-    - end_time: string, end time for the reference velocity (default is '2013-12-31')
+    - season: string, season to filter profiles by (e.g. 'spring', 'summer', 'winter', 'all_year')
+    - years: list of years to filter profiles by
     - mask_sigma: boolean, if True, mask the sigma0 values below 27.8 kg/m^3
 
 '''
@@ -34,8 +34,7 @@ def create_dataset(case, file_case, omega, xstart, xend, spacing_z=25, spacing_x
     file_path = parent_dir / f"data/weighted data/weighted_data_{file_case}_{case}_omega{int(omega)}_xstart{str(xstart)}_xend{xend}.npy"
 
     specvol_anom, sigma0, SA, CT = np.load(file_path)
-    season = case.split('_')[1]  # Extract season from the case name
-    print('season:', season) # small check
+    
     x = np.arange(xstart, xend + spacing_x, spacing_x)
     z = np.arange(0, 2000 + spacing_z, spacing_z) * -1 # negative depth
     # Create a new xarray dataset
@@ -66,13 +65,8 @@ def create_dataset(case, file_case, omega, xstart, xend, spacing_z=25, spacing_x
     # load reference velocity
     input_file = parent_dir / 'demo data/yomaha_velocities_referenced_to_1000dbar_new.nc'
     
-    if season in ['spring', 'summer', 'winter', 'mayjunjul']:
-        cut_season = True
-    else:
-        cut_season = False
-    print('cut_season:', cut_season)
-
-    poly_func = ref.derive_poly_func(input_file, start_time=start_time, end_time=end_time, cut_season=cut_season, season=season, returnXY=False)
+    #poly_func = ref.derive_poly_func(input_file, start_time=start_time, end_time=end_time, cut_season=cut_season, season=season, returnXY=False)
+    poly_func = tools.derive_poly_func(input_file,  years, season=season, degree=5, start_x=xstart, end_x=xend, cut_edges=True, returnXY=False)
 
     xhalf = (x[1:] + x[:-1])/2
     _, Zhalf = np.meshgrid(xhalf, z)
