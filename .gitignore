@@ -36,6 +36,7 @@ notebooks/plotting.ipynb
 notebooks/plotting_old.ipynb
 notebooks/paper_work.ipynb
 docs/
+scripts/sort_profile_numbers_mask.py
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
