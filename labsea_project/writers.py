@@ -8,7 +8,6 @@ script_dir = pathlib.Path().parent.absolute()
 parent_dir = script_dir.parents[0]
 sys.path.append(str(parent_dir))
 
-from labsea_project import reference_func as ref
 from labsea_project import tools
 
 
