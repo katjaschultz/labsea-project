@@ -38,6 +38,7 @@ notebooks/paper_work.ipynb
 docs/
 scripts/sort_profile_numbers_mask.py
 labsea_project/reference_func.py
+requirements-dev.txt
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -147,6 +148,7 @@ ENV/
 env.bak/
 venv.bak/
 labsea-env/
+labsea-env-312/
 
 # Spyder project settings
 .spyderproject

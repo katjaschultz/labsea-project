@@ -1,20 +1,12 @@
-
-netCDF4
-xarray
-numpy
-pandas  
-scipy 
+netCDF4>=1.6.5
+xarray>=2023.1.0
+numpy>=1.26.0
+pandas>=2.1.0
+scipy>=1.11.0
 tqdm
 gsw
-matplotlib
-argopy @ git+https://github.com/euroargodev/argopy.git@6a21764bcf124437ac1da344dcfc364e55eb5c45
-pathlib
-#sys
-#time
-#math
+matplotlib>=3.8.0
 geopy
-argparse
-subprocess
-
-
-
+argopy @ git+https://github.com/euroargodev/argopy.git@6a21764bcf124437ac1da344dcfc364e55eb5c45
+ipykernel>=6.29.0
+dask[complete]    
