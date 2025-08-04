@@ -26,13 +26,13 @@ def create_dataset(case, file_case, omega, xstart, xend, season, years, spacing_
     - spacing_x: float, spacing in x-direction for the grid
     - season: string, season to filter profiles by (e.g. 'spring', 'summer', 'winter', 'all_year')
     - years: list of years to filter profiles by
-    - mask_sigma: boolean, if True, mask the sigma0 values below 27.8 kg/m^3
+    - mask_sigma: boolean, if True, mask the sigma values below 27.8 kg/m^3
 
 '''
     # Load data from the specified file
     file_path = parent_dir / f"data/weighted data/weighted_data_{file_case}_{case}_omega{int(omega)}_xstart{str(xstart)}_xend{xend}.npy"
 
-    specvol_anom, sigma0, SA, CT = np.load(file_path)
+    specvol_anom, sigma, SA, CT = np.load(file_path)
     
     x = np.arange(xstart, xend + spacing_x, spacing_x)
     z = np.arange(0, 2000 + spacing_z, spacing_z) * -1 # negative depth
@@ -40,7 +40,7 @@ def create_dataset(case, file_case, omega, xstart, xend, season, years, spacing_
     ds = xr.Dataset(
         {
             'specvol_anom': (['z', 'x'], specvol_anom),
-            'sigma0': (['z', 'x'], sigma0),
+            'sigma': (['z', 'x'], sigma),
             'SA': (['z', 'x'], SA),
             
             'CT': (['z', 'x'], CT)
@@ -53,7 +53,7 @@ def create_dataset(case, file_case, omega, xstart, xend, season, years, spacing_
             'description': f'Weighted data for {case} with omega={omega}, xstart={xstart}, xend={xend}',
             'units': {
                 'specvol_anom (specific volume anomaly)': 'kg/m^3 \n',
-                'sigma0 (potential density)': 'kg/m^3 \n',
+                'sigma (potential density)': 'kg/m^3 \n',
                 'SA (absolute salinity)': 'g/kg \n',
                 'CT (conservative temperature)': 'degree_Celsius'
             }
@@ -76,7 +76,7 @@ def create_dataset(case, file_case, omega, xstart, xend, season, years, spacing_
     _, Z  = np.meshgrid(x, z)
     P = gsw.p_from_z(Z, lat_ar7w)
 
-    v, sigma0half    = tools.derive_abs_geo_v(specvol_anom, sigma0, P, argo_ref, lon_ar7w, lat_ar7w, xhalf, Zhalf, mask_sigma=mask_sigma)
+    v, sigmahalf    = tools.derive_abs_geo_v(specvol_anom, sigma, P, argo_ref, lon_ar7w, lat_ar7w, xhalf, Zhalf, mask_sigma=mask_sigma)
     strf_z, strf_x, imbalance, mask_xa, piecewise_trapz_z, piecewise_trapz_x = tools.derive_strf(v, xhalf*1e3, z*-1)
 
     # add variables to dataset (coords: xhalf, z)
@@ -86,7 +86,7 @@ def create_dataset(case, file_case, omega, xstart, xend, season, years, spacing_
     ds['x0'] = (['x0'], xhalf[1:]) # exclude 0 point from x-coordinate
 
     ds['v'] = (['z', 'xhalf'], v)
-    ds['sigma0half'] = (['z', 'xhalf'], sigma0half)
+    ds['sigmahalf'] = (['z', 'xhalf'], sigmahalf)
     ds['strf_z'] = (['z'], strf_z)
     ds['strf_x'] = (['xhalf'], strf_x)
     ds['mask_xa'] = (['xhalf'], mask_xa.data)

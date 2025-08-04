@@ -28,7 +28,7 @@ The script takes the following parameters:
 - argo: Boolean flag indicating if the input data is from Argo profiles (default is True).
 - ctd: Boolean flag indicating if the input data is from CTD profiles (default is False).
 
-The script will save the weighted specific volume anomaly, sigma0, SA, and CT to a NumPy binary file.'''
+The script will save the weighted specific volume anomaly, sigma_theta, SA, and CT to a NumPy binary file.'''
 
 def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x, omega, xstart, xend, argo=True, ctd=False):
 
@@ -47,13 +47,13 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
 
     if argo:
         # Load profiles
-        x_data, z_data, specvol_anom, sigma0, SA, CT = tools.load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
+        x_data, z_data, specvol_anom, sigma_theta, SA, CT = tools.load_selected_profiles(filename) # loads all profiles as default when mask_profiles is empty
         N, M = specvol_anom.shape  # number of profiles, levels        
         # Interpolate on common z grid
         specvol_int = tools.interpolate_profiles(specvol_anom, z_data, z)
-        sigma0_int = tools.interpolate_profiles(sigma0, z_data, z)
-        SA_int = tools.interpolate_profiles(SA, z_data, z)
-        CT_int = tools.interpolate_profiles(CT, z_data, z) 
+        sigma_int  = tools.interpolate_profiles(sigma_theta, z_data, z)
+        SA_int      = tools.interpolate_profiles(SA, z_data, z)
+        CT_int     = tools.interpolate_profiles(CT, z_data, z) 
         # Distance Matrix A[i, j] = |x_data[i,0] - grid_points[0,0,j]|
         A = np.abs(x_data[:, 0][:, None] - grid_points[0, 0, :][None, :])
 
@@ -62,7 +62,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
         ds = xr.open_dataset(filename)   
         x_data = ds['x'].values
         specvol_int = ds['specvol_anom'].values
-        sigma0_int = ds['sigma0'].values
+        sigma_int = ds['sigma0'].values
         SA_int = ds['SA'].values
         CT_int = ds['CT'].values
 
@@ -71,7 +71,7 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
 
     # Initialize output matrix for weighted specific volume anomaly
     specvol_anom_weighted = np.empty([Mg, Ng])
-    sigma0_weighted = np.empty([Mg, Ng])
+    sigma_weighted = np.empty([Mg, Ng])
     SA_weighted = np.empty([Mg, Ng])
     CT_weighted = np.empty([Mg, Ng])
 
@@ -97,13 +97,13 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
         
         valid_dist = profile_dist[mask]
         valid_specvol = specvol_int[mask,:]
-        valid_sigma0 = sigma0_int[mask,:]
+        valid_sigma0 = sigma_int[mask,:]
         valid_SA = SA_int[mask,:]
         valid_CT = CT_int[mask,:]
 
         if np.all(np.isnan(valid_specvol)):
             specvol_anom_weighted[:, j] = np.nan
-            sigma0_weighted[:, j] = np.nan
+            sigma_weighted[:, j] = np.nan
             SA_weighted[:, j] = np.nan
             CT_weighted[:, j] = np.nan
         else:
@@ -114,18 +114,18 @@ def main(filename, mask_profiles, output_file, folder_path, spacing_z, spacing_x
                 weights /= np.sum(weights)
                 if weights.size == 0:
                     specvol_anom_weighted[i, j] = np.nan
-                    sigma0_weighted[i, j] = np.nan
+                    sigma_weighted[i, j] = np.nan
                     SA_weighted[i, j] = np.nan
                     CT_weighted[i, j] = np.nan
                 else:
                     specvol_anom_weighted[i, j] = np.nansum(valid_specvol[valid_z,i]* weights[:], axis=0)
-                    sigma0_weighted[i, j] = np.nansum(valid_sigma0[valid_z,i] * weights[:], axis=0)
+                    sigma_weighted[i, j] = np.nansum(valid_sigma0[valid_z,i] * weights[:], axis=0)
                     SA_weighted[i, j] = np.nansum(valid_SA[valid_z,i] * weights[:], axis=0)
                     CT_weighted[i, j] = np.nansum(valid_CT[valid_z,i] * weights[:], axis=0)
             
         
     # Save the result as a Numpy binary file
-    np.save(output_file, [specvol_anom_weighted, sigma0_weighted, SA_weighted, CT_weighted], 'w')
+    np.save(output_file, [specvol_anom_weighted, sigma_weighted, SA_weighted, CT_weighted], 'w')
     print(f"Weighted data saved to {output_file}")
   
 if __name__ == "__main__": 

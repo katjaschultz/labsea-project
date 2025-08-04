@@ -61,14 +61,14 @@ def calc_abs_geo_v(geo_v, ref_vel, p):
     return geo_v  + v_0
 
 
-def derive_abs_geo_v(specvol_anom, sigma0, p, ref_vel, lon_ar7w, lat_ar7w, xhalf, Z, p_ref=0, mask_sigma=True):
+def derive_abs_geo_v(specvol_anom, sigma, p, ref_vel, lon_ar7w, lat_ar7w, xhalf, Z, p_ref=0, mask_sigma=True):
    
     """ Calculate absolute geostrophic velocity from specific volume anomaly 
         directly using the functions above. 
         Masking out below densities of 27.8 kg/m^3 and at the topography.
     Args: 
         specvol_anom (numpy.ndarray): Specific volume anomaly.
-        sigma0 (numpy.ndarray): Potential Density.
+        sigma (numpy.ndarray): Potential Density.
         ref_vel (numpy.ndarray): Reference velocity.
         xhalf (numpy.ndarray): x-coordinates of derived geostrophic velocity.
         Z (numpy.ndarray): Depth levels."""
@@ -80,8 +80,8 @@ def derive_abs_geo_v(specvol_anom, sigma0, p, ref_vel, lon_ar7w, lat_ar7w, xhalf
     v      = calc_abs_geo_v(geo_v, ref_vel, p)
     
     # mask topo and density
-    sigma0half = (sigma0[:,1:] + sigma0[:,:-1])/2
-    mask    = sigma0half <= 27.8
+    sigmahalf = (sigma[:,1:] + sigma[:,:-1])/2
+    mask    = sigmahalf <= 27.8
   
     x_topo, topo = np.load(parent_dir / 'demo data/corrected_topography.npy')
 
@@ -89,13 +89,13 @@ def derive_abs_geo_v(specvol_anom, sigma0, p, ref_vel, lon_ar7w, lat_ar7w, xhalf
     mask_topo = Z <= topo[ind]*-1
 
     v[mask_topo] = np.nan
-    sigma0half[mask_topo] = np.nan
+    sigmahalf[mask_topo] = np.nan
 
     if mask_sigma:
         v[~mask] = np.nan
-        sigma0half[~mask] = np.nan
+        sigmahalf[~mask] = np.nan
       
-    return v, sigma0half
+    return v, sigmahalf
 
 def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
 
@@ -166,7 +166,7 @@ def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
     
 
     
-def derive_transport_in_density_space(v, sigma0half, sigma_bins, sensitivity = 0, onlyEast=False):
+def derive_transport_in_density_space(v, sigmahalf, sigma_bins, sensitivity = 0, onlyEast=False):
 
     if onlyEast is False:
         v = v + sensitivity
@@ -176,7 +176,7 @@ def derive_transport_in_density_space(v, sigma0half, sigma_bins, sensitivity = 0
     A = 10000*25 # area of a grid cell in depth space
     T = v * A    # tranport of each grid cell
 
-    bin_indices = np.digitize(sigma0half, sigma_bins)
+    bin_indices = np.digitize(sigmahalf, sigma_bins)
 
     Q0 = np.zeros(len(sigma_bins)) # last bin contains nan values
     Q = np.zeros(len(sigma_bins))
@@ -249,7 +249,7 @@ def load_selected_profiles(filename, mask_profiles=np.array([])):
         x_data: Rotated x-coordinates (shape: [n_profiles, M])
         z_data: Rotated depth levels (shape: [n_profiles, M])
         specvol_anom: Specific volume anomaly (shape: [n_profiles, M])
-        sigma0: Potential density (shape: [n_profiles, M])
+        sigma_theta: Potential density (shape: [n_profiles, M])
         SA: Absolute salinity (shape: [n_profiles, M])
         CT: Conservative temperature (shape: [n_profiles, M])
     """
@@ -269,7 +269,11 @@ def load_selected_profiles(filename, mask_profiles=np.array([])):
         argo_sel.SA.values, argo_sel.CT.values, argo_sel.PRES.values
     )
     
-    sigma0 = gsw.density.sigma0(argo_sel.SA.values, argo_sel.CT.values)
+
+    theta = gsw.pt_from_CT(argo_sel.SA.values, argo_sel.CT.values)
+    rho_theta = gsw.rho_t_exact(argo_sel.SA.values, theta, 0)
+    sigma_theta = rho_theta - 1000
+
     
     # Rotate coordinates
     bbox = [-55.73, -44, 53.517, 68]  # AR7W intersection at the coast
@@ -280,7 +284,7 @@ def load_selected_profiles(filename, mask_profiles=np.array([])):
     z_data     = gsw.z_from_p(argo_sel.PRES.values, lat_data)*10**(-3) # convert to km
     
     argo_ds.close()
-    return x_data, z_data, specvol_anom, sigma0, argo_sel.SA.values, argo_sel.CT.values
+    return x_data, z_data, specvol_anom, sigma_theta, argo_sel.SA.values, argo_sel.CT.values
 
 
 def select_profiles_and_save_masks( filename, case_str, season, years ):
@@ -413,36 +417,36 @@ def interpolate_profiles(values, z_data, z):
     return interpolated_values
 
 
-def convert_to_density_space(sigma0_grid, sigma0_int, var):
+def convert_to_density_space(sigma_grid, sigma_int, var):
     """
     Convert variables to density space for 2D arrays.
     
     Args:
-        sigma0_grid (1D array): Target density grid.
-        sigma0_int (2D array): Input density values (2D grid, axis 1 is the sigma/z axis).
-        var (2D array): Variable values corresponding to sigma0_int (2D grid, axis 1 is the sigma/z axis).
+        sigma_grid (1D array): Target density grid.
+        sigma_int (2D array): Input density values (2D grid, axis 1 is the sigma/z axis).
+        var (2D array): Variable values corresponding to sigma_int (2D grid, axis 1 is the sigma/z axis).
     
     Returns:
-        2D array: Interpolated variable values on the sigma0_grid for each row.
+        2D array: Interpolated variable values on the sigma_grid for each row.
     """
     # Initialize an array to store the interpolated results
-    var_sigma = np.empty((sigma0_int.shape[0], len(sigma0_grid)))
+    var_sigma = np.empty((sigma_int.shape[0], len(sigma_grid)))
 
     # Loop over rows
-    for i in range(sigma0_int.shape[0]):
-        # Sort sigma0_int and var for the current row
-        sort_idx = np.argsort(sigma0_int[i, :])
-        sigma0_sorted = sigma0_int[i, sort_idx]
+    for i in range(sigma_int.shape[0]):
+        # Sort sigma_int and var for the current row
+        sort_idx = np.argsort(sigma_int[i, :])
+        sigma_sorted = sigma_int[i, sort_idx]
         var_sorted = var[i, sort_idx]
 
-        # Remove duplicates in sigma0_sorted
-        _, unique_idx = np.unique(sigma0_sorted, return_index=True)
-        sigma0_unique = sigma0_sorted[unique_idx]
+        # Remove duplicates in sigma_sorted
+        _, unique_idx = np.unique(sigma_sorted, return_index=True)
+        sigma_unique = sigma_sorted[unique_idx]
         var_unique = var_sorted[unique_idx]
 
-        # Interpolate to the target sigma0_grid
-        f = scipy.interpolate.interp1d(sigma0_unique, var_unique, bounds_error=False, fill_value=np.nan)
-        var_sigma[i, :] = f(sigma0_grid)
+        # Interpolate to the target sigma_grid
+        f = scipy.interpolate.interp1d(sigma_unique, var_unique, bounds_error=False, fill_value=np.nan)
+        var_sigma[i, :] = f(sigma_grid)
 
     return var_sigma
 

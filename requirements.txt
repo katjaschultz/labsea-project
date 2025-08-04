@@ -9,12 +9,11 @@ gsw
 matplotlib
 argopy @ git+https://github.com/euroargodev/argopy.git@6a21764bcf124437ac1da344dcfc364e55eb5c45
 pathlib
-sys
-time
-math
+#sys
+#time
+#math
 geopy
 argparse
-tqdm
 subprocess
 
 

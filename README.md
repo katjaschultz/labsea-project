@@ -32,6 +32,11 @@ scripts/               # Processing scripts
 ## 🔧 Usage
 
 Clone the repository and activate a new environment on your local machine
+Python version: 3.12.1
+   ```bash
+   python3.9 -m venv <name-venv>
+   ```
+
 
 1. **Install dependencies:**
 
