@@ -44,7 +44,7 @@ def plot_abs_geo_v(ds, title_string, fig_string, saving=False):
 
     # Extract variables from dataset
     v = ds['v'].values
-    sigma0half = ds['sigma0half'].values
+    sigmahalf = ds['sigmahalf'].values
     xhalf = ds['xhalf'].values
     z = ds['z'].values
 
@@ -58,8 +58,8 @@ def plot_abs_geo_v(ds, title_string, fig_string, saving=False):
         label.set_bbox(dict(facecolor='white', edgecolor='none', alpha=0.7, boxstyle='round,pad=0.2'))
 
     #density contours
-    ax.contour(xhalf, z , sigma0half, levels=np.arange(27.6, 27.82, 0.02), colors='k', linewidths=0.5)
-    ax.contour(xhalf, z , sigma0half, [27.8])
+    ax.contour(xhalf, z , sigmahalf, levels=np.arange(27.6, 27.82, 0.02), colors='k', linewidths=0.5)
+    ax.contour(xhalf, z , sigmahalf, [27.8])
     ax.set_title(title_string, fontsize=12)
     
     ax.plot(x_topo, topo * -1, color=[.3, .3, .3], linewidth=0.5, zorder=3)
@@ -174,7 +174,7 @@ def plot_density_space_transport(
     main_Q, main_Q_cum, scaled_depth, 
     main_label="transport", main_color="mediumorchid",
     extra_lines=None,  # list of dicts: {'Q': ..., 'Q_cum': ..., 'label': ..., 'cum_label': ..., 'color': ...}
-    densities=None, sigma_bins=None, mean_sigma0=None, z=None,
+    densities=None, sigma_bins=None, mean_sigma=None, z=None,
     title="Transport in Density Space", savepath=None
 ):
     """
@@ -190,7 +190,7 @@ def plot_density_space_transport(
         extra_lines: list of dicts, each with keys 'Q', 'Q_cum', 'label',  'color'
         densities: list of density values for secondary y-axis ticks (optional)
         sigma_bins: array of sigma bins (required if densities is given)
-        mean_sigma0: mean sigma0 profile (required if densities is given)
+        mean_sigma: mean sigma profile (required if densities is given)
         z: depth array (required if densities is given)
         title: title for the plot
         savepath: if given, save the figure to this path
@@ -207,7 +207,7 @@ def plot_density_space_transport(
     ax.legend()
 
     # Add secondary y-axis for densities if info is provided
-    if densities is not None and sigma_bins is not None and mean_sigma0 is not None and z is not None:
+    if densities is not None and sigma_bins is not None and mean_sigma is not None and z is not None:
         ints = [np.argmin(np.abs(sigma_bins - d)) for d in densities]
         z_ticks = scaled_depth[ints]
         z_ticks = np.insert(z_ticks, 0, 0)
