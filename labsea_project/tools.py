@@ -97,6 +97,7 @@ def derive_abs_geo_v(specvol_anom, sigma, p, ref_vel, lon_ar7w, lat_ar7w, xhalf,
       
     return v, sigmahalf
 
+'''
 def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
 
     """ Calculate the horizontal and vertical transport streamfunction from the velocity field. 
@@ -152,7 +153,7 @@ def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
     imbalance = strf_x[-1]
 
     piecewise_trapz_z = np.array([
-    scipy.integrate.trapezoid(vel.mean(dim="distance", skipna=True)[i:i+2] * delta_x[i:i+2]*1e3, x=vel.depth[i:i+2]*-1) * 10**(-6) 
+    scipy.integrate.trapezoid(vel.mean(dim="distance", skipna=True)[i:i+2] * delta_x[i:i+2]*1e3, x=vel.depth[i:i+2]) * 10**(-6) 
     for i in range(len(vel.depth) - 1)])
 
     piecewise_trapz_x = np.array([
@@ -163,9 +164,97 @@ def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
         return strf_z, strf_x, imbalance, mask_x, piecewise_trapz_z, piecewise_trapz_x, delta_x, delta_z
     else:
         return strf_z, strf_x, imbalance, mask_x, piecewise_trapz_z, piecewise_trapz_x
-    
+'''
 
-    
+def derive_strf(v, x, z, sensitivity=0, onlyEast=False, returnDelta=False):
+        
+        """ Calculate the horizontal and vertical transport streamfunction from the velocity field. 
+            option to add a sensitivity to the velocity field for the whole section or only at eastern part
+            to minimize the imbalance of the streamfunction.
+        Args:
+            v (numpy.ndarray): Velocity field.
+            x (numpy.ndarray): x-coordinates.
+            z (numpy.ndarray): Depth levels.
+            sensitivity (float): Sensitivity to be added to the velocity field.
+            onlyEast (bool): If True, apply sensitivity only to the eastern part.
+            returnDelta (bool): If True, return delta_x and delta_z.
+        Returns:
+            strf_z (numpy.ndarray): Vertical transport streamfunction.
+            strf_x (numpy.ndarray): Horizontal transport streamfunction.
+            imbalance (float): Imbalance of the streamfunction.
+            mask_x (numpy.ndarray): Mask for horizontal transport streamfunction.
+        Optional:
+            delta_x (numpy.ndarray): Delta x-coordinates.
+            delta_z (numpy.ndarray): Delta depth levels.
+        """
+        
+        spacing_z, spacing_x = 25, 10
+        v_copy = v.copy()  # <— schützt Eingabe
+
+        if not onlyEast:
+            v_work = v_copy + sensitivity           # neue Array, keine Mutation
+        else:
+            v_work = v_copy.copy()
+            v_work[:, -10:] = v_work[:, -10:] + sensitivity  # Mutation nur an Kopie
+
+        mask = ~np.isnan(v_work)
+        vel = xr.DataArray(v_work, dims=["depth","distance"], coords=dict(depth=z, distance=x))
+
+        delta_x = np.array([np.count_nonzero(mask[i]) for i in range(mask.shape[0])]) * spacing_x
+        delta_z = np.array([np.count_nonzero(mask[:,i]) for i in range(mask.shape[1])]) * spacing_z
+
+        strf_z = scipy.integrate.cumulative_trapezoid(vel.mean("distance", skipna=True)*delta_x*1000,
+                                                    x=vel.depth, initial=0) * 1e-6
+        vp = vel - vel.mean("distance", skipna=True)
+        vh = vp.mean("depth",   skipna=True)
+        mask_x = np.isnan(vh)
+        strf_x = scipy.integrate.cumulative_trapezoid(vh[~mask_x]*delta_z[~mask_x],
+                                                    x=vel.distance[~mask_x], initial=0) * 1e-6
+        imbalance = strf_x[-1]
+
+        piecewise_trapz_z = np.array([
+            scipy.integrate.trapezoid(vel.mean("distance", skipna=True)[i:i+2] * delta_x[i:i+2]*1e3,
+                                    x=vel.depth[i:i+2]) * 1e-6
+            for i in range(len(vel.depth)-1)
+        ])
+        piecewise_trapz_x = np.array([
+            scipy.integrate.trapezoid(vh[~mask_x][i:i+2] * delta_z[i:i+2],
+                                    x=vel.distance[~mask_x][i:i+2]) * 1e-6
+            for i in range(len(vel.distance)-1)
+        ])
+
+        if returnDelta:
+            return strf_z, strf_x, imbalance, mask_x, piecewise_trapz_z, piecewise_trapz_x, delta_x, delta_z
+        else:
+            return strf_z, strf_x, imbalance, mask_x, piecewise_trapz_z, piecewise_trapz_x
+
+
+def derive_transport_in_density_space(v, sigmahalf, sigma_bins, sensitivity=0, onlyEast=False):
+    v_work = v.copy()  # <— schützt Eingabe
+
+    if not onlyEast:
+        v_work = v_work + sensitivity          # keine In-place Mutation
+    else:
+        v_work[:, -10:] = v_work[:, -10:] + sensitivity  # Mutation nur an Kopie
+
+    A = 10000 * 25
+    T = v_work * A
+
+    bin_indices = np.digitize(sigmahalf, sigma_bins)  # gleiche Form wie v/sigmahalf
+
+    Q0 = np.zeros(len(sigma_bins))
+    Q  = np.zeros(len(sigma_bins))
+
+    for i in range(len(sigma_bins)):
+        bin_mask = (bin_indices == i)
+        Q0[i] = np.nansum(T[bin_mask]) * 1e-6
+
+    # kumulativ
+    Q = np.cumsum(Q0)
+
+    return Q0, Q
+
+'''    
 def derive_transport_in_density_space(v, sigmahalf, sigma_bins, sensitivity = 0, onlyEast=False):
 
     if onlyEast is False:
@@ -191,7 +280,7 @@ def derive_transport_in_density_space(v, sigmahalf, sigma_bins, sensitivity = 0,
     for i in range(0,len(sigma_bins)):
         Q[i] = np.nansum(Q0[:i+1])
 
-    return Q0, Q
+    return Q0, Q'''
 
 def find_adjustment_velocity(v, x, z, onlyEast=False):
 
@@ -220,7 +309,7 @@ def find_adjustment_velocity(v, x, z, onlyEast=False):
         imb_z = np.zeros(len(sensitivity))
 
         for i, sens in enumerate(sensitivity):
-            strf_z1, strf_x1, imbalance, _, _, _ = derive_strf(v, x, z, sensitivity=sens, onlyEast=onlyEast)
+            strf_z1, strf_x1, imbalance, _, _, _ = derive_strf(v.copy(), x, z, sensitivity=sens, onlyEast=onlyEast)
             imb_z[i] = strf_z1[-1]-strf_z1[0]
             imb_x[i] = imbalance
 
