@@ -45,10 +45,13 @@ Python version: 3.12.1
    pip install -r requirements.txt
    ```
 
-2. **Run the demo notebook:**
+   Depending on your python setup, you may have to install jupyer notebook or other dependencies in the environment to run the notebook.
+   If you are having trouble installing argopy, please visit the documentation for help: https://argopy.readthedocs.io/en/latest/install.html
+
+3. **Run the demo notebook:**
    Open `notebooks/demo.ipynb` in Jupyter or VS Code and follow the workflow to download, process, and analyze Argo data.
 
-3. **Scripts and modules:**
+4. **Scripts and modules:**
 
    * Use functions from `labsea_project/` in your own scripts or notebooks for custom analyses.
 
