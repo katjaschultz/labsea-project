@@ -45,9 +45,9 @@ Python version: 3.12.1
    pip install -r requirements.txt
    ```
 
-   Depending on your python setup, you may have to install jupyer notebook or other dependencies in the environment to run the notebook.
+   Depending on your python setup, you may have to install **jupyer notebook** or other dependencies in the environment to run the notebook.
    
-   If you are having trouble installing argopy, please visit the documentation for help: https://argopy.readthedocs.io/en/latest/install.html
+   If you are having trouble installing **argopy**, please visit the documentation for help: https://argopy.readthedocs.io/en/latest/install.html
 
 3. **Run the demo notebook:**
    Open `notebooks/demo.ipynb` and follow the workflow to download, process, and analyze Argo data.
