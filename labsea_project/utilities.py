@@ -153,7 +153,11 @@ def select_datapoints_by_season_and_year(dataset, season, years):
                     (dataset.datetime.dt.month == 11)
                 )
             elif season == 'all_year':
-                mask |= (dataset.datetime.dt.year == year)
+                # December belongs to the "next" year
+                mask_dec = (dataset.datetime.dt.year == year-1) & (dataset.datetime.dt.month == 12)
+                mask_jan_nov = (dataset.datetime.dt.year == year) & (dataset.datetime.dt.month.isin(range(1, 12)))
+                mask |= mask_dec | mask_jan_nov
+
             elif isinstance(season, list):
                 # If season is a list of months, filter by those months
                 mask |= (dataset.datetime.dt.year == year) & (dataset.datetime.dt.month.isin(season))

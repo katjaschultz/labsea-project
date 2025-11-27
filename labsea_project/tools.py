@@ -97,74 +97,6 @@ def derive_abs_geo_v(specvol_anom, sigma, p, ref_vel, lon_ar7w, lat_ar7w, xhalf,
       
     return v, sigmahalf
 
-'''
-def derive_strf(v, x, z, sensitivity = 0,  onlyEast=False, returnDelta=False):
-
-    """ Calculate the horizontal and vertical transport streamfunction from the velocity field. 
-        option to add a sensitivity to the velocity field for the whole section or only at eastern part
-        to minimize the imbalance of the streamfunction.
-    Args:
-        v (numpy.ndarray): Velocity field.
-        x (numpy.ndarray): x-coordinates.
-        z (numpy.ndarray): Depth levels.
-        sensitivity (float): Sensitivity to be added to the velocity field.
-        onlyEast (bool): If True, apply sensitivity only to the eastern part.
-        returnDelta (bool): If True, return delta_x and delta_z.
-    Returns:
-        strf_z (numpy.ndarray): Vertical transport streamfunction.
-        strf_x (numpy.ndarray): Horizontal transport streamfunction.
-        imbalance (float): Imbalance of the streamfunction.
-        mask_x (numpy.ndarray): Mask for horizontal transport streamfunction.
-    Optional:
-        delta_x (numpy.ndarray): Delta x-coordinates.
-        delta_z (numpy.ndarray): Delta depth levels.
-        """
-    
-    # define grid
-    spacing_z, spacing_x = 25, 10
-
-    v_copy = v.copy()
-
-    if onlyEast == False:  
-        mask = ~np.isnan(v_copy)
-        vel    = xr.DataArray(data = v_copy + sensitivity,
-                        dims = ["depth", "distance"],
-                        coords = dict(depth = z,
-                                        distance = x))
-    elif onlyEast == True:
-        # add sensitivity for x >= xend-100km
-        v_copy[:,-10:] = v_copy[:,-10:] + sensitivity 
-        mask = ~np.isnan(v_copy) 
-        vel    = xr.DataArray(data = v_copy,
-                        dims = ["depth", "distance"],
-                        coords = dict(depth = z,
-                                        distance = x))
-        
-    delta_x = np.array([len(mask[i])-len(np.where(mask[i] == False)[0]) for i in range(len(mask))])*spacing_x
-    delta_z = np.array([len(mask[:,i])-len(np.where(mask[:,i] == False)[0]) for i in range(mask.shape[1])])*spacing_z
-    
-    strf_z  = scipy.integrate.cumulative_trapezoid(vel.mean(dim="distance", skipna=True)*delta_x*1000, x=vel.depth, initial=0)*10**(-6) # in m, in Sv
-            
-    vp = (vel - vel.mean(dim='distance', skipna=True) )
-    vh = vp.mean(dim='depth', skipna=True)
-    mask_x = np.isnan(vh)
-    strf_x = scipy.integrate.cumulative_trapezoid(vh[~np.isnan(vh)]*delta_z[~np.isnan(vh)], x=vel.distance[~np.isnan(vh)], initial=0)*10**(-6)
-    
-    imbalance = strf_x[-1]
-
-    piecewise_trapz_z = np.array([
-    scipy.integrate.trapezoid(vel.mean(dim="distance", skipna=True)[i:i+2] * delta_x[i:i+2]*1e3, x=vel.depth[i:i+2]) * 10**(-6) 
-    for i in range(len(vel.depth) - 1)])
-
-    piecewise_trapz_x = np.array([
-    scipy.integrate.trapezoid(vh[~np.isnan(vh)][i:i+2] * delta_z[i:i+2], x=vel.distance[~np.isnan(vh)][i:i+2]) * 10**(-6)
-    for i in range(len(vel.distance) - 1)])
-
-    if returnDelta:
-        return strf_z, strf_x, imbalance, mask_x, piecewise_trapz_z, piecewise_trapz_x, delta_x, delta_z
-    else:
-        return strf_z, strf_x, imbalance, mask_x, piecewise_trapz_z, piecewise_trapz_x
-'''
 
 def derive_strf(v, x, z, sensitivity=0, onlyEast=False, returnDelta=False):
         
@@ -254,33 +186,6 @@ def derive_transport_in_density_space(v, sigmahalf, sigma_bins, sensitivity=0, o
 
     return Q0, Q
 
-'''    
-def derive_transport_in_density_space(v, sigmahalf, sigma_bins, sensitivity = 0, onlyEast=False):
-
-    if onlyEast is False:
-        v = v + sensitivity
-    else:
-        v[:,-10:] = v[:,-10:] + sensitivity
-    
-    A = 10000*25 # area of a grid cell in depth space
-    T = v * A    # tranport of each grid cell
-
-    bin_indices = np.digitize(sigmahalf, sigma_bins)
-
-    Q0 = np.zeros(len(sigma_bins)) # last bin contains nan values
-    Q = np.zeros(len(sigma_bins))
-
-    # calc transport in each bin
-    # bin_indices corresponds to bin smaller than the value of the bin, e.g the first bin is 26.8, so all values smaller than 26.8 are in bin 0
-    for i in range(0,len(sigma_bins)):
-        bin_mask = bin_indices == i
-        Q0[i] = np.nansum(T[bin_mask])*10**(-6) # in Sv
-
-    # cumulative sum of the transport
-    for i in range(0,len(sigma_bins)):
-        Q[i] = np.nansum(Q0[:i+1])
-
-    return Q0, Q'''
 
 def find_adjustment_velocity(v, x, z, onlyEast=False):
 
@@ -427,7 +332,11 @@ def select_profiles_and_save_masks( filename, case_str, season, years ):
                 (argo_ds.TIME.dt.month == 11)
             )
         elif season == 'all_year':
-            mask |= (argo_ds.TIME.dt.year == year)
+            # December belongs to the "next" year
+            mask_dec = (argo_ds.TIME.dt.year == year-1) & (argo_ds.TIME.dt.month == 12)
+            mask_jan_nov = (argo_ds.TIME.dt.year == year) & (argo_ds.TIME.dt.month.isin(range(1, 12)))
+            mask |= mask_dec | mask_jan_nov
+
         elif isinstance(season, list):
             # If season is a list of months, filter by those months
             mask |= (argo_ds.TIME.dt.year == year) & (argo_ds.TIME.dt.month.isin(season))
